@@ -1,107 +1,97 @@
-from prometheus_client import start_http_server, Gauge
+import argparse
+from prometheus_client import start_http_server, Gauge, Info
+import paramiko
 import time
-import requests
-from bs4 import BeautifulSoup
+import re
 
-# GPON Metrics
-temperature_gauge = Gauge('gpon_temperature_celsius', 'Temperature of the GPON device in Celsius')
-voltage_gauge = Gauge('gpon_voltage_volts', 'Voltage of the GPON device in Volts')
-tx_power_gauge = Gauge('gpon_tx_power_dbm', 'Tx Power of the GPON device in dBm')
-rx_power_gauge = Gauge('gpon_rx_power_dbm', 'Rx Power of the GPON device in dBm')
-bias_current_gauge = Gauge('gpon_bias_current_mA', 'Bias Current of the GPON device in mA')
-onu_state_gauge = Gauge('gpon_onu_state', 'ONU State of the GPON device')
-onu_id_gauge = Gauge('gpon_onu_id', 'ONU ID of the GPON device')
-loid_status_gauge = Gauge('gpon_loid_status', 'LOID Status of the GPON device')
+# Define the command-line argument parser
+parser = argparse.ArgumentParser(description='GPON Metrics Collector')
+parser.add_argument('--hostname', action='append', help='Hostname or IP of the GPON device', required=True)
+parser.add_argument('--port', action='append', type=int, help='SSH port of the GPON device', required=True)
+parser.add_argument('--user', action='append', help='Username for SSH authentication', required=True)
+parser.add_argument('--password', action='append', help='Password for SSH authentication', required=True)
+parser.add_argument('--webserver-port', type=int, default=8114, help='Port for the Prometheus metrics web server to listen on')
 
-# VLAN Metrics
-vlan_cfg_type_gauge = Gauge('vlan_config_type', 'VLAN Configuration Type (0=Auto, 1=Manual)')
-vlan_mode_gauge = Gauge('vlan_mode', 'VLAN Mode (0=Transparent, 1=PVID)')
-vlan_number_gauge = Gauge('vlan_number', 'VLAN number')
+# Parse command-line arguments
+args = parser.parse_args()
 
-# System Metrics
-cpu_usage_gauge = Gauge('cpu_usage_percent', 'CPU Usage of the device in percent')
-memory_usage_gauge = Gauge('memory_usage_percent', 'Memory Usage of the device in percent')
+# Metric Definitions
+temperature_gauge = Gauge('gpon_temperature_celsius', 'Temperature of the GPON device in Celsius', ['ip'])
+voltage_gauge = Gauge('gpon_voltage_volts', 'Voltage of the GPON device in Volts', ['ip'])
+tx_power_gauge = Gauge('gpon_tx_power_dbm', 'Tx Power of the GPON device in dBm', ['ip'])
+rx_power_gauge = Gauge('gpon_rx_power_dbm', 'Rx Power of the GPON device in dBm', ['ip'])
+bias_current_gauge = Gauge('gpon_bias_current_mA', 'Bias Current of the GPON device in mA', ['ip'])
+onu_state_gauge = Gauge('gpon_onu_state', 'ONU State of the GPON device', ['ip'])
+onu_id_gauge = Gauge('gpon_onu_id', 'ONU ID of the GPON device', ['ip'])
+loid_status_gauge = Gauge('gpon_loid_status', 'LOID Status of the GPON device', ['ip'])
 
-# ONU State Mapping
+# ONU State and LOID Status Mappings
 onu_state_mapping = {
-    '03': 3,  # Adjust based on actual values and meanings
-    'O5': 5,  # Example mapping
-    # Add more mappings for other states
+    '01': 1,
+    '02': 2,        
+    '03': 3,
+    '04': 4,
+    'O5': 5,
+    '06': 6,
+    '07': 7,    
+    # Add more mappings for other states as needed
 }
 
-# LOID Status Mapping
 loid_status_mapping = {
     'Initial Status': 0,
     'Loid Error': 1,
-    # Add more mappings for other statuses
+    # Add more mappings for other statuses as needed
 }
 
-def numeric_ip(ip):
-    """Convert dotted IP address to a numeric representation."""
-    return sum(int(part) << (8 * i) for i, part in enumerate(reversed(ip.split('.'))))
+def fetch_and_update_metrics_via_ssh(hostname, port, username, password):
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname, port, username, password, look_for_keys=False, allow_agent=False)
 
-def parse_metric_value(row):
-    return row.find_all('td')[1].text.strip().split()[0]
+    commands = {
+        'diag pon get transceiver bias-current': bias_current_gauge,
+        'diag pon get transceiver rx-power': rx_power_gauge,
+        'diag pon get transceiver temperature': temperature_gauge,
+        'diag pon get transceiver tx-power': tx_power_gauge,
+        'diag pon get transceiver voltage': voltage_gauge,
+        'diag gpon get onu-state': onu_state_gauge,
+        'omcicli get onuid': onu_id_gauge,
+        'omcicli get state': loid_status_gauge,
+    }
 
-def fetch_and_update_gpon_metrics():
-    url = "http://192.168.1.1/status_pon.asp"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    for command, gauge in commands.items():
+        stdin, stdout, stderr = client.exec_command(command)
+        result = stdout.read().decode().strip()
 
-    rows = soup.find_all('tr', bgcolor="#DDDDDD")
+        if command in ['diag pon get transceiver rx-power', 'diag pon get transceiver tx-power']:
+            value = re.search(r'(-?\d+\.\d+)', result)
+            if value:
+                gauge.labels(ip=hostname).set(float(value.group(0)))
+        elif command.startswith('diag gpon get onu-state'):
+            state_code = re.search(r'ONU state: (.*)', result)
+            if state_code:
+                gauge.labels(ip=hostname).set(onu_state_mapping.get(state_code.group(1), 0))
+        elif command.startswith('omcicli get state'):
+            status_code = re.search(r'LOID Status: (.*)', result)
+            if status_code:
+                gauge.labels(ip=hostname).set(loid_status_mapping.get(status_code.group(1), 0))
+        else:
+            value = re.search(r'(\d+\.\d+)', result)
+            if value:
+                gauge.labels(ip=hostname).set(float(value.group(0)))
 
-    temperature_gauge.set(float(parse_metric_value(rows[0])))
-    voltage_gauge.set(float(parse_metric_value(rows[1])))
-    tx_power_gauge.set(float(parse_metric_value(rows[2])))
-    rx_power_gauge.set(float(parse_metric_value(rows[3])))
-    bias_current_gauge.set(float(parse_metric_value(rows[4])))
+        stdin.close()
+        stdout.close()
+        stderr.close()
 
-    gpon_status_rows = rows[5:8]
-    onu_state_raw = parse_metric_value(gpon_status_rows[0])
-    onu_state_value = onu_state_mapping.get(onu_state_raw, 0)  # Default to 0 if unknown
-    onu_state_gauge.set(onu_state_value)
-
-    onu_id_gauge.set(float(parse_metric_value(gpon_status_rows[1])))
-    
-    loid_status_raw = parse_metric_value(gpon_status_rows[2])
-    loid_status_value = loid_status_mapping.get(loid_status_raw, 0)  # Default to 0 if unknown
-    loid_status_gauge.set(loid_status_value)
-
-def fetch_and_update_vlan_metrics():
-    url = "http://192.168.1.1/vlan.asp"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    vlan_cfg_type = soup.find('input', {'name': 'vlan_cfg_type', 'checked': True})
-    vlan_cfg_type_value = 0 if vlan_cfg_type and vlan_cfg_type['value'] == '0' else 1
-    vlan_cfg_type_gauge.set(vlan_cfg_type_value)
-
-    vlan_mode = soup.find('input', {'name': 'vlan_manu_mode', 'checked': True})
-    vlan_mode_value = 0 if vlan_mode and vlan_mode['value'] == '0' else 1
-    vlan_mode_gauge.set(vlan_mode_value)
-
-    vlan_number_input = soup.find('input', {'name': 'vlan_manu_tag_vid'})
-    vlan_number = int(vlan_number_input['value']) if vlan_number_input and vlan_number_input['value'] else 0
-    vlan_number_gauge.set(vlan_number)
-
-def fetch_and_update_system_metrics():
-    url = "http://192.168.1.1/status.asp"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-
-    cpu_usage = int(soup.find(string='CPU Usage').find_next('td').text.strip().strip('%'))
-    memory_usage = int(soup.find(string='Memory Usage').find_next('td').text.strip().strip('%'))
-
-    cpu_usage_gauge.set(cpu_usage)
-    memory_usage_gauge.set(memory_usage)
+    client.close()
 
 def main():
-    start_http_server(8000)
+    start_http_server(args.webserver_port)
     while True:
-        fetch_and_update_gpon_metrics()
-        fetch_and_update_vlan_metrics()
-        fetch_and_update_system_metrics()
-        time.sleep(300)
+        for i in range(len(args.hostname)):
+            fetch_and_update_metrics_via_ssh(args.hostname[i], args.port[i], args.user[i], args.password[i])
+        time.sleep(300)  # Fetch every 60 seconds
 
 if __name__ == "__main__":
     main()
