@@ -23,16 +23,57 @@
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 10,
+      "id": 14,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "description": "",
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 0,
+            "y": 9
+          },
+          "id": 13,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "# Common attenuation sources:\n\n- **Upstream Length Loss:** `~0.5 dB` per Km on `1310 nm`.\n- **Downstream Length Loss:** `~0.3 dB` per Km on `1490 nm`.\n- **Splices Loss:** `~0.1 dB` per splice.\n- **Connectors Loss:** `~0.6 dB` per connector.\n- **Splitter Loss:** `log10(split:ratio) x 10 = Attenuation in dB` for each split.\n\nSee - [UISP Fiber: Designing a GPON Network](https://help.ui.com/hc/en-us/articles/115011654907-UISP-Fiber-Designing-a-GPON-Network)",
+            "mode": "markdown"
+          },
+          "pluginVersion": "10.3.3",
+          "title": "HSGQ / ODI XPON SoC and GPON signal metrics",
+          "transparent": true,
+          "type": "text"
+        }
+      ],
+      "title": "Attenuation sources",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 12,
       "panels": [],
-      "title": "HSGQ / ODI XPON SoC and GPON signal metrics",
+      "title": "CPU / RAM / Voltage",
       "type": "row"
     },
     {
@@ -67,7 +108,8 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percent",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -75,7 +117,7 @@
         "h": 8,
         "w": 4,
         "x": 0,
-        "y": 1
+        "y": 2
       },
       "id": 3,
       "options": {
@@ -90,9 +132,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.2.0",
+      "pluginVersion": "10.3.3",
       "targets": [
         {
           "datasource": {
@@ -100,7 +143,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "cpu_usage_percent",
+          "expr": "rate(process_cpu_seconds_total[5m])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -142,7 +185,8 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percent",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -150,7 +194,7 @@
         "h": 8,
         "w": 4,
         "x": 4,
-        "y": 1
+        "y": 2
       },
       "id": 7,
       "options": {
@@ -165,9 +209,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.2.0",
+      "pluginVersion": "10.3.3",
       "targets": [
         {
           "datasource": {
@@ -175,7 +220,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "memory_usage_percent",
+          "expr": "process_resident_memory_bytes{job=\"gpon_collector\", instance=\"localhost:8111\"} / (1024^2)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -195,29 +240,37 @@
           "color": {
             "mode": "thresholds"
           },
+          "fieldMinMax": false,
           "mappings": [],
+          "max": 3.6,
+          "min": 3.09,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "purple",
+                "color": "green",
                 "value": null
               },
               {
                 "color": "#EAB839",
-                "value": ""
+                "value": 3.01
               },
               {
                 "color": "green",
-                "value": ""
+                "value": 3.135
+              },
+              {
+                "color": "green",
+                "value": 3.465
               },
               {
                 "color": "red",
-                "value": 3.6
+                "value": 3.5
               }
             ]
           },
-          "unit": "volt"
+          "unit": "volt",
+          "unitScale": false
         },
         "overrides": []
       },
@@ -225,7 +278,7 @@
         "h": 8,
         "w": 4,
         "x": 8,
-        "y": 1
+        "y": 2
       },
       "id": 2,
       "options": {
@@ -240,9 +293,10 @@
           "values": false
         },
         "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.2.0",
+      "pluginVersion": "10.3.3",
       "targets": [
         {
           "datasource": {
@@ -250,14 +304,14 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_voltage_volts",
+          "expr": "gpon_voltage_volts {job=\"gpon_collector\", instance=\"localhost:8111\", ip=\"192.168.1.1\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "PON voltage",
+      "title": "SFP voltage",
       "type": "gauge"
     },
     {
@@ -267,41 +321,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 3,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -312,34 +331,195 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": -28
+              },
+              {
+                "color": "orange",
+                "value": -27
+              },
+              {
+                "color": "yellow",
+                "value": -26
+              },
+              {
+                "color": "green",
+                "value": -25
+              },
+              {
+                "color": "green",
+                "value": 2
+              },
+              {
+                "color": "yellow",
+                "value": 3
+              },
+              {
+                "color": "orange",
+                "value": 3.5
+              },
+              {
+                "color": "red",
+                "value": 4
               }
             ]
           },
-          "unit": "dBm"
+          "unit": "dBm",
+          "unitScale": false
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GPON Tx power"
+              },
+              {
+                "id": "min",
+                "value": -11
+              },
+              {
+                "id": "max",
+                "value": 8
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "GPON Rx power"
+              },
+              {
+                "id": "min",
+                "value": -28
+              },
+              {
+                "id": "max",
+                "value": -8
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": -11
+                    },
+                    {
+                      "color": "orange",
+                      "value": -10.5
+                    },
+                    {
+                      "color": "green",
+                      "value": -10
+                    },
+                    {
+                      "color": "green",
+                      "value": 7
+                    },
+                    {
+                      "color": "orange",
+                      "value": 7.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 8
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": -29
+                    },
+                    {
+                      "color": "orange",
+                      "value": -28.5
+                    },
+                    {
+                      "color": "green",
+                      "value": -28
+                    },
+                    {
+                      "color": "green",
+                      "value": -8
+                    },
+                    {
+                      "color": "orange",
+                      "value": -7.5
+                    },
+                    {
+                      "color": "red",
+                      "value": -7
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 2
       },
-      "id": 6,
+      "id": 11,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "hidden",
-          "placement": "right",
-          "showLegend": false
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false,
+        "sizing": "auto"
       },
-      "pluginVersion": "10.2.0",
+      "pluginVersion": "10.3.3",
       "targets": [
         {
           "datasource": {
@@ -347,15 +527,40 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_tx_power_dbm",
+          "expr": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "editorMode": "code",
+          "expr": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "Signal Tx power",
-      "type": "timeseries"
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 10,
+      "panels": [],
+      "title": "Temperature & GPON signal metrics",
+      "type": "row"
     },
     {
       "datasource": {
@@ -374,6 +579,8 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
+            "axisSoftMax": 70,
+            "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 20,
@@ -414,7 +621,8 @@
               }
             ]
           },
-          "unit": "celsius"
+          "unit": "celsius",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -422,7 +630,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 11
       },
       "id": 1,
       "options": {
@@ -507,11 +715,11 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 3.2
               }
             ]
           },
-          "unit": "dBm"
+          "unitScale": true
         },
         "overrides": []
       },
@@ -519,9 +727,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 11
       },
-      "id": 4,
+      "id": 6,
       "options": {
         "legend": {
           "calcs": [],
@@ -542,14 +750,14 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_rx_power_dbm",
+          "expr": "gpon_tx_power_dbm",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Signal Rx power",
+      "title": "Signal Tx power",
       "type": "timeseries"
     },
     {
@@ -558,6 +766,105 @@
         "uid": "G3vCyHW4k"
       },
       "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 130,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "mamp",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "right",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "editorMode": "code",
+          "expr": "gpon_bias_current_mA",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bias Current",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "G3vCyHW4k"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -605,21 +912,21 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": -26
               }
             ]
           },
-          "unit": "mamp"
+          "unitScale": true
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 17
+        "x": 12,
+        "y": 19
       },
-      "id": 5,
+      "id": 4,
       "options": {
         "legend": {
           "calcs": [],
@@ -632,6 +939,7 @@
           "sort": "none"
         }
       },
+      "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": {
@@ -639,14 +947,14 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_bias_current_mA",
+          "expr": "gpon_rx_power_dbm",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Bias Current",
+      "title": "Signal Rx power",
       "type": "timeseries"
     },
     {
@@ -654,22 +962,23 @@
         "type": "prometheus",
         "uid": "G3vCyHW4k"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-BlPu",
+            "mode": "continuous-RdYlGr",
             "seriesBy": "last"
           },
           "custom": {
-            "axisBorderShow": false,
+            "axisBorderShow": true,
             "axisCenteredZero": false,
             "axisColorMode": "series",
             "axisGridShow": false,
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
+            "barAlignment": 1,
+            "drawStyle": "bars",
+            "fillOpacity": 41,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -677,17 +986,21 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "lineStyle": {
-              "fill": "solid"
+              "dash": [
+                0,
+                10
+              ],
+              "fill": "dot"
             },
-            "lineWidth": 3,
-            "pointSize": 4,
+            "lineWidth": 2,
+            "pointSize": 7,
             "scaleDistribution": {
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -704,10 +1017,35 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": -26
+              },
+              {
+                "color": "#EAB839",
+                "value": -24
+              },
+              {
+                "color": "green",
+                "value": -19.2
+              },
+              {
+                "color": "green",
+                "value": 2.2
+              },
+              {
+                "color": "yellow",
+                "value": 3
+              },
+              {
+                "color": "red",
+                "value": 4
               }
             ]
           },
-          "unit": "none"
+          "unit": "dBm",
+          "unitScale": true
         },
         "overrides": [
           {
@@ -718,11 +1056,11 @@
             "properties": [
               {
                 "id": "custom.axisCenteredZero",
-                "value": true
+                "value": false
               },
               {
                 "id": "custom.axisLabel",
-                "value": "Tx dBm"
+                "value": "Tx"
               }
             ]
           },
@@ -734,28 +1072,84 @@
             "properties": [
               {
                 "id": "custom.axisCenteredZero",
-                "value": true
+                "value": false
               },
               {
                 "id": "custom.axisLabel",
-                "value": "Rx dBm"
+                "value": "Rx"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": -10
+                    },
+                    {
+                      "color": "green",
+                      "value": -8
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": -28
+                    },
+                    {
+                      "color": "green",
+                      "value": -8
+                    }
+                  ]
+                }
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 17
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 27
       },
       "id": 9,
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "hidden",
-          "placement": "right",
+          "displayMode": "list",
+          "placement": "bottom",
           "showLegend": false
         },
         "tooltip": {
@@ -795,11 +1189,39 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "",
-  "schemaVersion": 38,
+  "refresh": "1m",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "localhost:8111",
+          "value": "localhost:8111"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "G3vCyHW4k"
+        },
+        "definition": "label_values(instance)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "qryType": 5,
+          "query": "label_values(instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-6h",
@@ -809,6 +1231,6 @@
   "timezone": "",
   "title": "GPON stats",
   "uid": "b45d043f-be14-46bf-ae11-8751703bb120",
-  "version": 3,
+  "version": 11,
   "weekStart": ""
 }
