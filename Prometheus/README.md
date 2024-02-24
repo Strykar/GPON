@@ -11,6 +11,8 @@ _GPON Tx power_ (`-10 dBm` to `8 dBm`) / _Rx power_ (`-28 dBm` to `-8 dBm`) Erro
 
 _SFP voltage_ (`3.015 V` to `3.56 V`)
 
+Take the CPU and RAM usage with a grain of salt, their accuracy is not entirely clear.
+
 ## 3) Temperature and GPON signal metrics
 _Commercial SoC temps_ `0°C` to `70°C`
 _Industrial SoC temps_ `-40°C` to `85°C` (Add additional temperature thresholds in Grafana as appropriate if you own one)
