@@ -39,10 +39,10 @@
           },
           "description": "",
           "gridPos": {
-            "h": 7,
-            "w": 8,
+            "h": 9,
+            "w": 6,
             "x": 0,
-            "y": 9
+            "y": 1
           },
           "id": 13,
           "options": {
@@ -51,7 +51,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "# Common attenuation sources:\n\n- **Upstream Length Loss:** `~0.5 dB` per Km on `1310 nm`.\n- **Downstream Length Loss:** `~0.3 dB` per Km on `1490 nm`.\n- **Splices Loss:** `~0.1 dB` per splice.\n- **Connectors Loss:** `~0.6 dB` per connector.\n- **Splitter Loss:** `log10(split:ratio) x 10 = Attenuation in dB` for each split.\n\nSee - [UISP Fiber: Designing a GPON Network](https://help.ui.com/hc/en-us/articles/115011654907-UISP-Fiber-Designing-a-GPON-Network)",
+            "content": "# Common attenuation sources:\n\n- **Upstream Length Loss:** `~0.5 dB` per Km on `1310 nm`.\n- **Downstream Length Loss:** `~0.3 dB` per Km on `1490 nm`.\n- **Splices Loss:** `~0.1 dB` per splice.\n- **Connectors Loss:** `~0.6 dB` per connector.\n- **Splitter Loss:** `log10(split:ratio) x 10 = Attenuation in dB` for each split.\n\nAlso see:\n- [UISP Fiber: Designing a GPON Network](https://help.ui.com/hc/en-us/articles/115011654907-UISP-Fiber-Designing-a-GPON-Network)\n\n- [Understanding GPON ONU registration states: Operation States 01 to 07](https://www.telecomate.com/mtk-solution-gpon-ont-onu-registration-process-and-omci-analysis)\n\n- [Activation Process of ONU in EPON / GPON / XG-PON / NG-PON2 Networks](https://github.com/Strykar/GPON/blob/main/applsci-08-01934.pdf)\n\n",
             "mode": "markdown"
           },
           "pluginVersion": "10.3.3",
@@ -60,7 +60,7 @@
           "type": "text"
         }
       ],
-      "title": "Attenuation sources",
+      "title": "Attenuation",
       "type": "row"
     },
     {
@@ -81,244 +81,7 @@
         "type": "prometheus",
         "uid": "G3vCyHW4k"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "purple",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": ""
-              },
-              {
-                "color": "#EAB839",
-                "value": 51
-              },
-              {
-                "color": "red",
-                "value": 76
-              }
-            ]
-          },
-          "unit": "percent",
-          "unitScale": true
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 0,
-        "y": 2
-      },
-      "id": 3,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "10.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "G3vCyHW4k"
-          },
-          "editorMode": "code",
-          "expr": "rate(process_cpu_seconds_total[5m])",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "CPU usage",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "G3vCyHW4k"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "purple",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": ""
-              },
-              {
-                "color": "#EAB839",
-                "value": 51
-              },
-              {
-                "color": "red",
-                "value": 76
-              }
-            ]
-          },
-          "unit": "percent",
-          "unitScale": true
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 4,
-        "y": 2
-      },
-      "id": 7,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "10.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "G3vCyHW4k"
-          },
-          "editorMode": "code",
-          "expr": "process_resident_memory_bytes{job=\"gpon_collector\", instance=\"localhost:8111\"} / (1024^2)",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "RAM usage",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "G3vCyHW4k"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "fieldMinMax": false,
-          "mappings": [],
-          "max": 3.6,
-          "min": 3.09,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 3.01
-              },
-              {
-                "color": "green",
-                "value": 3.135
-              },
-              {
-                "color": "green",
-                "value": 3.465
-              },
-              {
-                "color": "red",
-                "value": 3.5
-              }
-            ]
-          },
-          "unit": "volt",
-          "unitScale": false
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 8,
-        "y": 2
-      },
-      "id": 2,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "10.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "G3vCyHW4k"
-          },
-          "editorMode": "code",
-          "expr": "gpon_voltage_volts {job=\"gpon_collector\", instance=\"localhost:8111\", ip=\"192.168.1.1\"}",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "SFP voltage",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "G3vCyHW4k"
-      },
+      "description": "Internal calibration: +/-2dB",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -406,101 +169,13 @@
                 "value": -8
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
-            },
-            "properties": [
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": -11
-                    },
-                    {
-                      "color": "orange",
-                      "value": -10.5
-                    },
-                    {
-                      "color": "green",
-                      "value": -10
-                    },
-                    {
-                      "color": "green",
-                      "value": 7
-                    },
-                    {
-                      "color": "orange",
-                      "value": 7.5
-                    },
-                    {
-                      "color": "red",
-                      "value": 8
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}"
-            },
-            "properties": [
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": -29
-                    },
-                    {
-                      "color": "orange",
-                      "value": -28.5
-                    },
-                    {
-                      "color": "green",
-                      "value": -28
-                    },
-                    {
-                      "color": "green",
-                      "value": -8
-                    },
-                    {
-                      "color": "orange",
-                      "value": -7.5
-                    },
-                    {
-                      "color": "red",
-                      "value": -7
-                    }
-                  ]
-                }
-              }
-            ]
           }
         ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 2
       },
       "id": 11,
@@ -515,9 +190,12 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": false,
-        "sizing": "auto"
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "sizing": "auto",
+        "text": {
+          "valueSize": 25
+        }
       },
       "pluginVersion": "10.3.3",
       "targets": [
@@ -527,7 +205,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
+          "expr": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -539,7 +217,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "{__name__=\"gpon_rx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
+          "expr": "{__name__=\"gpon_tx_power_dbm\", instance=\"localhost:8111\", ip=\"192.168.1.1\", job=\"gpon_collector\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -547,6 +225,249 @@
           "refId": "B"
         }
       ],
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "G3vCyHW4k"
+      },
+      "description": "0 - 3.7 V, expects close to constant 3.3 V\nInternal calibration: +/-3%",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "fieldMinMax": false,
+          "mappings": [],
+          "max": 3.75,
+          "min": 2.95,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2.95
+              },
+              {
+                "color": "green",
+                "value": 3.02
+              },
+              {
+                "color": "green",
+                "value": 3.57
+              },
+              {
+                "color": "red",
+                "value": 3.65
+              }
+            ]
+          },
+          "unit": "volt",
+          "unitScale": false
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 2
+      },
+      "id": 2,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "sizing": "auto",
+        "text": {
+          "valueSize": 25
+        }
+      },
+      "pluginVersion": "10.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "editorMode": "code",
+          "expr": "gpon_voltage_volts {job=\"gpon_collector\", instance=\"localhost:8111\", ip=\"192.168.1.1\"}",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "SFP voltage",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "G3vCyHW4k"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": ""
+              },
+              {
+                "color": "#EAB839",
+                "value": 51
+              },
+              {
+                "color": "red",
+                "value": 76
+              }
+            ]
+          },
+          "unit": "percent",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 2
+      },
+      "id": 7,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "10.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "editorMode": "code",
+          "expr": "process_resident_memory_bytes{job=\"gpon_collector\", instance=\"localhost:8111\"} / (1024^2)",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "RAM",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "G3vCyHW4k"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": ""
+              },
+              {
+                "color": "#EAB839",
+                "value": 51
+              },
+              {
+                "color": "red",
+                "value": 76
+              }
+            ]
+          },
+          "unit": "percent",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 2
+      },
+      "id": 3,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "10.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "G3vCyHW4k"
+          },
+          "editorMode": "code",
+          "expr": "rate(process_cpu_seconds_total[5m])",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU",
       "type": "gauge"
     },
     {
@@ -567,19 +488,19 @@
         "type": "prometheus",
         "uid": "G3vCyHW4k"
       },
-      "description": "",
+      "description": "Internal calibration error is +/-3C\nCommercial: 0 - 70C\nIndustrial: -40 - 85C",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-GrYlRd"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisBorderShow": false,
+            "axisBorderShow": true,
             "axisCenteredZero": false,
-            "axisColorMode": "text",
+            "axisColorMode": "series",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMax": 70,
+            "axisSoftMax": 80,
             "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
@@ -604,7 +525,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "area"
             }
           },
           "mappings": [],
@@ -616,8 +537,12 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 65
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 70
               }
             ]
           },
@@ -660,7 +585,7 @@
           "refId": "A"
         }
       ],
-      "title": "SFP SoC Temperature ",
+      "title": "SFP (Commercial) SoC Temperature ",
       "type": "timeseries"
     },
     {
@@ -765,19 +690,19 @@
         "type": "prometheus",
         "uid": "G3vCyHW4k"
       },
-      "description": "",
+      "description": "Internal calibration: +/-10%",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-GrYlRd"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisBorderShow": false,
+            "axisBorderShow": true,
             "axisCenteredZero": false,
-            "axisColorMode": "text",
+            "axisColorMode": "series",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMax": 130,
+            "axisSoftMax": 140,
             "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
@@ -802,7 +727,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "area"
             }
           },
           "mappings": [],
@@ -814,8 +739,12 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 120
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 130
               }
             ]
           },
@@ -966,7 +895,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-RdYlGr",
+            "mode": "continuous-BlYlRd",
             "seriesBy": "last"
           },
           "custom": {
@@ -977,30 +906,26 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 1,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 41,
-            "gradientMode": "none",
+            "gradientMode": "scheme",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
+            "insertNulls": 3600000,
             "lineInterpolation": "stepAfter",
             "lineStyle": {
-              "dash": [
-                0,
-                10
-              ],
-              "fill": "dot"
+              "fill": "solid"
             },
             "lineWidth": 2,
             "pointSize": 7,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
-            "spanNulls": 3600000,
+            "showPoints": "never",
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1139,7 +1064,7 @@
         ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 24,
         "x": 0,
         "y": 27
@@ -1189,7 +1114,7 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "1m",
+  "refresh": "5m",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
@@ -1231,6 +1156,6 @@
   "timezone": "",
   "title": "GPON stats",
   "uid": "b45d043f-be14-46bf-ae11-8751703bb120",
-  "version": 11,
+  "version": 27,
   "weekStart": ""
 }
