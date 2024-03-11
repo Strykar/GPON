@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus collector for the HSGQ / ODI GPON SFP
+Documentation=https://github.com/Strykar/GPON/
+After=network-online.target sshd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/strykar/.bin/hsgq_prometheus_collector5.py --hostname 192.168.1.1 --port 22 --user admin --password xxx --webserver-port 8111
+Restart=on-failure
+RestartSec=290s # Adjust the delay as appropriate
+
+[Install]
+WantedBy=default.target
