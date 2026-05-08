@@ -23,12 +23,25 @@
   "liveNow": false,
   "panels": [
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "id": 140,
+      "panels": [],
+      "title": "ONU Status",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
       },
       "id": 14,
       "panels": [
@@ -42,7 +55,7 @@
             "h": 9,
             "w": 8,
             "x": 0,
-            "y": 1
+            "y": 8
           },
           "id": 13,
           "options": {
@@ -69,7 +82,7 @@
             "h": 9,
             "w": 8,
             "x": 8,
-            "y": 1
+            "y": 8
           },
           "id": 134,
           "options": {
@@ -96,7 +109,7 @@
             "h": 9,
             "w": 8,
             "x": 16,
-            "y": 1
+            "y": 8
           },
           "id": 135,
           "options": {
@@ -123,7 +136,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 8
       },
       "id": 12,
       "panels": [],
@@ -180,7 +193,7 @@
         "h": 8,
         "w": 4,
         "x": 8,
-        "y": 2
+        "y": 9
       },
       "id": 2,
       "options": {
@@ -209,7 +222,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_voltage_volts {job=\"gpon_exporter\", instance=~\"$instance\", ip=~\"$ip\"}",
+          "expr": "gpon_voltage_volts {instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -259,7 +272,7 @@
         "h": 8,
         "w": 4,
         "x": 12,
-        "y": 2
+        "y": 9
       },
       "id": 7,
       "options": {
@@ -339,7 +352,7 @@
         "h": 8,
         "w": 4,
         "x": 16,
-        "y": 2
+        "y": 9
       },
       "id": 3,
       "options": {
@@ -385,7 +398,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 17
       },
       "id": 10,
       "panels": [],
@@ -464,7 +477,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 18
       },
       "id": 1,
       "options": {
@@ -576,7 +589,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 11
+        "y": 18
       },
       "id": 6,
       "options": {
@@ -682,7 +695,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 26
       },
       "id": 5,
       "options": {
@@ -793,7 +806,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 26
       },
       "id": 4,
       "options": {
@@ -833,7 +846,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 34
       },
       "id": 114,
       "panels": [],
@@ -912,7 +925,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 28
+        "y": 1
       },
       "id": 115,
       "options": {
@@ -998,7 +1011,7 @@
         "h": 6,
         "w": 14,
         "x": 6,
-        "y": 28
+        "y": 1
       },
       "id": 116,
       "options": {
@@ -1185,7 +1198,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 34
+        "y": 35
       },
       "id": 117,
       "options": {
@@ -1300,7 +1313,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 35
       },
       "id": 118,
       "options": {
@@ -1430,7 +1443,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 43
       },
       "id": 119,
       "options": {
@@ -1591,7 +1604,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 50
+        "y": 51
       },
       "id": 121,
       "options": {
@@ -1749,7 +1762,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 51
       },
       "id": 122,
       "options": {
@@ -1910,7 +1923,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 59
       },
       "id": 123,
       "options": {
@@ -1976,7 +1989,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 74
+        "y": 75
       },
       "id": 125,
       "panels": [],
@@ -2029,7 +2042,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 75
+        "y": 76
       },
       "id": 126,
       "options": {
@@ -2096,7 +2109,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 75
+        "y": 76
       },
       "id": 127,
       "options": {
@@ -2162,7 +2175,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 75
+        "y": 76
       },
       "id": 128,
       "options": {
@@ -2260,7 +2273,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 79
+        "y": 80
       },
       "id": 129,
       "options": {
@@ -2358,7 +2371,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 79
+        "y": 80
       },
       "id": 130,
       "options": {
@@ -2432,7 +2445,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 75
+        "y": 76
       },
       "id": 133,
       "options": {
@@ -2547,7 +2560,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 67
       },
       "id": 134,
       "options": {
@@ -2677,7 +2690,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 67
       },
       "id": 135,
       "options": {
@@ -2759,7 +2772,7 @@
         "h": 6,
         "w": 4,
         "x": 20,
-        "y": 28
+        "y": 1
       },
       "id": 136,
       "options": {
@@ -2844,7 +2857,7 @@
         "h": 8,
         "w": 4,
         "x": 0,
-        "y": 2
+        "y": 9
       },
       "id": 137,
       "options": {
@@ -2873,7 +2886,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_tx_power_dbm{job=\"gpon_exporter\", instance=~\"$instance\", ip=~\"$ip\"}",
+          "expr": "gpon_tx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -2932,7 +2945,7 @@
         "h": 8,
         "w": 4,
         "x": 4,
-        "y": 2
+        "y": 9
       },
       "id": 138,
       "options": {
@@ -2961,7 +2974,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_rx_power_dbm{job=\"gpon_exporter\", instance=~\"$instance\", ip=~\"$ip\"}",
+          "expr": "gpon_rx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3012,7 +3025,7 @@
         "h": 8,
         "w": 4,
         "x": 20,
-        "y": 2
+        "y": 9
       },
       "id": 139,
       "options": {
@@ -3041,7 +3054,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "gpon_temperature_celsius{job=\"gpon_exporter\", instance=~\"$instance\", ip=~\"$ip\"}",
+          "expr": "gpon_temperature_celsius{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
