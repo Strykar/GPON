@@ -1,13 +1,31 @@
 [Unit]
-Description=Prometheus collector for the HSGQ / ODI GPON SFP
+Description=Prometheus exporter for the HSGQ / ODI GPON SFP
 Documentation=https://github.com/Strykar/GPON/
-After=network-online.target sshd.service
+After=network-online.target
+Wants=network-online.target
+# Crashloop guard: if the daemon fails to stay up 5 times within 60s,
+# stop trying. Avoids hammering the SFP when the credentials are wrong.
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/strykar/.bin/hsgq_prometheus_collector5.py --hostname 192.168.1.1 --port 22 --user admin --password xxx --webserver-port 8111
+
+# Password lives in /etc/gpon-exporter/credentials (mode 0600), one line:
+#   ONU_SSH_PASSWORD=your-password-here
+# Putting it on the ExecStart line leaks it through `ps`, `journalctl -u odi`
+# and `systemctl status odi`.
+EnvironmentFile=/etc/gpon-exporter/credentials
+
+# Edit the path to wherever you cloned/installed the script, plus your SFP's
+# IP and credentials. Webserver-port 8114 is the documented default; change
+# it if your prometheus.yml scrape_config points elsewhere.
+ExecStart=/usr/bin/python3 /usr/local/bin/gpon_exporter.py \
+    --device admin@192.168.1.1:22 \
+    --webserver-port 8114
+
 Restart=on-failure
-RestartSec=290s # Adjust the delay as appropriate
+RestartSec=5s
 
 [Install]
 WantedBy=default.target

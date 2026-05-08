@@ -1,0 +1,13 @@
+.git
+.github
+*.pdf
+*.tar
+*.md
+.env
+.env.example
+tests/
+.pylintrc
+docker-compose.yml
+Prometheus/
+gpon_grafana_dashboard.json
+odi.service

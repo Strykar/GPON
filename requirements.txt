@@ -1,0 +1,2 @@
+paramiko>=3.0
+prometheus_client>=0.17
