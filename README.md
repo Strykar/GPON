@@ -3,8 +3,9 @@
 This repo ships:
 
 - **`gpon_exporter.py`** -- a Python Prometheus exporter that scrapes
-  ~75 metrics from an HSGQ / ODI (Realtek RTL960x) GPON SFP over SSH,
-  using the on-device `diag` and `omcicli` CLIs.
+  ~75 metrics from an [HSGQ / ODI](https://www.hsgq.com/XPON-Stick-Full-Form-Customized-pd597593578.html)
+  (Realtek RTL960x) GPON SFP over SSH, using the on-device `diag` and
+  `omcicli` CLIs.
 - **`dashboard.json`** -- a Grafana dashboard that visualises those
   metrics: optical readings, alarms, ONU state, FEC/BIP/PLOAM/BWMAP
   counters, and collector self-health.
@@ -49,6 +50,12 @@ python3 gpon_exporter.py --device admin@192.168.1.1
 
 # 4. import dashboard.json into Grafana, pick your Prometheus as the datasource.
 ```
+
+A `scrape_interval` between the exporter's `--interval` (default 5m) and
+~30s works fine; matching `--interval` is cleanest. Anything faster just
+returns the same value across multiple scrapes -- harmless but wasteful.
+Prometheus auto-sets the `instance` label to the target string, so no
+explicit `labels:` block is needed unless you want a friendly override.
 
 For long-running deployments use the systemd unit ([systemd](#systemd)) or
 the Docker compose file ([Docker / Podman](#docker--podman)) instead of
