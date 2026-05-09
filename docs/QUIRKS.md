@@ -134,15 +134,26 @@ useful. If you need actual key-change enforcement, swap to
 
 `omcicli` talks to `omci_app` over a local socket / shared memory.
 
-- `omcicli get sn`, `omcicli get loid`, `omcicli get loidauth`,
-  `omcicli get authuptime`, `omcicli get cflag` are real and work.
+- `omcicli get loidauth` and `omcicli get authuptime` work and are what
+  the collector uses.
+- **`omcicli get sn` is broken on V1.0-220923** -- it returns the same
+  MIB table-of-contents that `omcicli mib get` does, ignoring the `sn`
+  argument. The collector pulls the serial number from the running
+  `omci_app` process's argv instead (`ps` -> `omci_app -s <SN>`), which
+  is wedge-immune and works on every firmware that runs `omci_app` with
+  `-s` (which is all of them). Don't restore `omcicli get sn` as a probe
+  unless you've verified it actually works on the target firmware.
 - **`omcicli get onuid` and `omcicli get state` do not exist on this
-  firmware.** They print the `omcicli get` usage page. Older collectors
-  in the wild reference these and end up with broken metrics; ours uses
-  `loidauth` and `authuptime` instead.
+  firmware.** They print the `omcicli get` usage page.
 - **`omcicli mib getcurr` and `omcicli mib get` ignore their argument and
   always dump the full MIB table list** (a TOC, not the contents).
   Useless for our purposes.
+- **A hung `omcicli` client does NOT wedge `omci_app`**, despite the
+  surface-level similarity to the diag-then-omcicli wedge. If a verb
+  doesn't return data on this firmware, the omcicli command sits forever
+  waiting for a response; the daemon stays healthy. The wedge condition
+  documented below is specifically about `omci_app` itself becoming
+  unresponsive, not about omcicli hanging.
 
 ### The omci_app wedge
 

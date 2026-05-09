@@ -205,10 +205,25 @@ def test_loidauth_three_fields():
     assert value('gpon_loid_auth_success') == 4
 
 
-def test_serial_number_info_metric():
+def test_serial_number_from_ps_omci_app_argv():
+    """Real source on V1.0-220923: omci_app's command line carries the SN
+    in `-s <SN>`. Pulled from `ps` because the documented `omcicli get sn`
+    is broken on this firmware (returns the MIB TOC for every verb)."""
     handler = next(h for k, _, h in c.PROBES if k == 'sn')
-    handler('SerialNumber: DSNW282D5510', IP)
+    handler(
+        '  321 admin    22616 S    omci_app -s DSNW282D5510 -f off 0 -m enable_wq -d err\n'
+        '  477 admin    22616 S    omci_app -s DSNW282D5510 -f off 0 -m enable_wq -d err\n',
+        IP,
+    )
     assert value('gpon_device_info', serial_number='DSNW282D5510') == 1.0
+
+
+def test_serial_number_legacy_omcicli_format_still_parses():
+    """Kept for forward-compat: if a future firmware fixes omcicli, the
+    handler still recognises the historical 'SerialNumber: XYZ' shape."""
+    handler = next(h for k, _, h in c.PROBES if k == 'sn')
+    handler('SerialNumber: HWTC1234ABCD', IP)
+    assert value('gpon_device_info', serial_number='HWTC1234ABCD') == 1.0
 
 
 def test_firmware_handles_empty_text():
@@ -396,6 +411,63 @@ def test_proc_stat_skips_first_contact_then_increments():
     assert v('idle')   == 9.0
     assert v('iowait') == 0.0  # unchanged
     assert v('softirq') == 0.0
+
+
+def test_proc_net_dev_parses_eth0_counters():
+    """/proc/net/dev's standard 16-column format. Two-step baseline-then-real
+    so the absolutes land as deltas-from-zero on the per-{ip,iface} Counters."""
+    handler = next(h for k, _, h in c.PROBES if k == 'net_dev')
+    test_ip = '10.0.94.1'
+    def v(name, iface):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip, 'iface': iface})
+    header = ('Inter-|   Receive                                                |  Transmit\n'
+              ' face |bytes    packets errs drop fifo frame compressed multicast'
+              '|bytes    packets errs drop fifo colls carrier compressed\n')
+    handler(header +
+            '  eth0:       0       0    0    0    0     0          0         0'
+            '        0       0    0    0    0     0       0          0\n', test_ip)
+    handler(header +
+            '  eth0:1000  100    2    3    0    0    0    0  '
+            '500   50   1   4    0    0    0    0\n', test_ip)
+    assert v('gpon_network_receive_bytes_total',    'eth0') == 1000
+    assert v('gpon_network_receive_packets_total',  'eth0') == 100
+    assert v('gpon_network_receive_errors_total',   'eth0') == 2
+    assert v('gpon_network_receive_dropped_total',  'eth0') == 3
+    assert v('gpon_network_transmit_bytes_total',   'eth0') == 500
+    assert v('gpon_network_transmit_packets_total', 'eth0') == 50
+    assert v('gpon_network_transmit_errors_total',  'eth0') == 1
+    assert v('gpon_network_transmit_dropped_total', 'eth0') == 4
+
+
+def test_proc_net_dev_handles_multiple_interfaces():
+    """Each iface gets its own series; the SFP exposes lo, eth0, br0, pon0,
+    nas0, eth0.2, eth0.3 -- iface name with a dot is valid."""
+    handler = next(h for k, _, h in c.PROBES if k == 'net_dev')
+    test_ip = '10.0.94.2'
+    def v(name, iface):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip, 'iface': iface})
+    text = (
+        'Inter-|   Receive                                                |  Transmit\n'
+        ' face |bytes    packets errs drop fifo frame compressed multicast'
+        '|bytes    packets errs drop fifo colls carrier compressed\n'
+        '  eth0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n'
+        '   br0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n'
+        'eth0.2: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n'
+    )
+    handler(text, test_ip)
+    handler(text.replace(
+        '  eth0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0',
+        '  eth0: 7 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0',
+    ).replace(
+        '   br0: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0',
+        '   br0: 9 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0',
+    ).replace(
+        'eth0.2: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0',
+        'eth0.2: 0 0 0 0 0 0 0 0 11 3 0 0 0 0 0 0',
+    ), test_ip)
+    assert v('gpon_network_receive_bytes_total', 'eth0') == 7
+    assert v('gpon_network_receive_bytes_total', 'br0')  == 9
+    assert v('gpon_network_transmit_bytes_total', 'eth0.2') == 11
 
 
 def test_proc_stat_handles_per_cpu_lines_after_aggregate():

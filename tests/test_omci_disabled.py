@@ -40,9 +40,13 @@ def test_omci_probes_present_when_enabled():
 
 def test_omci_probes_absent_when_disabled():
     keys = _check_probes([])  # no --enable-omci
-    omci_only = {'authuptime', 'loidauth', 'sn'}
+    # 'sn' was an omcicli probe historically but moved to DIAG_PROBES once we
+    # switched to parsing the omci_app argv from `ps` (omcicli is broken on
+    # V1.0-220923; QUIRKS has the detail).
+    omci_only = {'authuptime', 'loidauth'}
     leaked = omci_only & set(keys)
     assert not leaked, f'omcicli probes leaked into PROBES with --enable-omci off: {leaked}'
     # Diag probes must still be there
     assert 'firmware' in keys
     assert 'bias_current' in keys
+    assert 'sn' in keys, 'sn should now be a diag probe, present without --enable-omci'

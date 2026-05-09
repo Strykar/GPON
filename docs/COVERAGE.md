@@ -21,6 +21,8 @@ and not duplicated here.
 | `cat /proc/meminfo` | `gpon_memory_total_bytes`, `_free_bytes`, `_buffers_bytes`, `_cached_bytes` | SFP RAM |
 | `cat /proc/uptime` | `gpon_system_uptime_seconds` | (not charted yet) |
 | `cat /sys/class/net/eth0/address` | `gpon_mac_info{mac}` | SFP MAC |
+| `cat /proc/net/dev` | `gpon_network_{receive,transmit}_{bytes,packets,errors,dropped}_total{iface}` | LAN throughput, LAN errors and drops |
+| `ps` | `gpon_device_info{serial_number}` | (parsed from `omci_app -s <SN>` argv; replaces broken `omcicli get sn`) |
 | `diag pon get transceiver tx-power` | `gpon_tx_power_dbm` | Signal Tx power, Laser Tx (1310 nm) |
 | `diag pon get transceiver rx-power` | `gpon_rx_power_dbm` | Signal Rx power, Laser Rx (1490 nm) |
 | `diag pon get transceiver temperature` | `gpon_temperature_celsius` | SFP (commercial) SoC temperature, SoC temperature (gauge) |
@@ -408,6 +410,26 @@ the vendor web UI uses to compute its "Memory Usage %" number:
 | `gpon_memory_cached_bytes` | Gauge | Page cache (`Cached`) |
 | `gpon_system_uptime_seconds` | Gauge | Seconds since the SFP booted. Distinct from `gpon_pon_uptime_seconds`, which is PON authentication uptime. |
 | `gpon_mac_info{mac=...}` | Info | LAN-side MAC of the SFP (eth0), from `/sys/class/net/eth0/address`. Matches the vendor web UI's "MAC Address" field. |
+
+### Network interface counters (Counter)
+
+Sourced from `/proc/net/dev`. Same shape as node_exporter's
+`node_network_*_total`. The `iface` label carries the kernel interface
+name; on a typical SFU build that's `lo`, `eth0`, `eth0.2`, `eth0.3`,
+`nas0`, `pon0`, `br0`. The dashboard charts only `eth0` (= the vendor
+web UI's "LAN" row). The PON-side virtuals stay flat-zero on this
+firmware.
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_network_receive_bytes_total{iface}` | RX bytes |
+| `gpon_network_receive_packets_total{iface}` | RX packets |
+| `gpon_network_receive_errors_total{iface}` | RX errors |
+| `gpon_network_receive_dropped_total{iface}` | RX dropped |
+| `gpon_network_transmit_bytes_total{iface}` | TX bytes |
+| `gpon_network_transmit_packets_total{iface}` | TX packets |
+| `gpon_network_transmit_errors_total{iface}` | TX errors |
+| `gpon_network_transmit_dropped_total{iface}` | TX dropped |
 
 ### Self-health metrics
 

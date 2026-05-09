@@ -213,6 +213,19 @@ sfp_uptime      = Gauge('gpon_system_uptime_seconds',
                         'gpon_pon_uptime_seconds which is PON authentication uptime)',
                         ['ip'])
 
+# Per-interface network counters from /proc/net/dev. Same shape as
+# node_exporter's node_network_*_total. Manual delta tracking for the
+# {ip, iface} label set.
+sfp_net_rx_bytes   = Counter('gpon_network_receive_bytes',    'RX bytes per interface', ['ip', 'iface'])
+sfp_net_rx_packets = Counter('gpon_network_receive_packets',  'RX packets per interface', ['ip', 'iface'])
+sfp_net_rx_errors  = Counter('gpon_network_receive_errors',   'RX errors per interface', ['ip', 'iface'])
+sfp_net_rx_dropped = Counter('gpon_network_receive_dropped',  'RX dropped per interface', ['ip', 'iface'])
+sfp_net_tx_bytes   = Counter('gpon_network_transmit_bytes',   'TX bytes per interface', ['ip', 'iface'])
+sfp_net_tx_packets = Counter('gpon_network_transmit_packets', 'TX packets per interface', ['ip', 'iface'])
+sfp_net_tx_errors  = Counter('gpon_network_transmit_errors',  'TX errors per interface', ['ip', 'iface'])
+sfp_net_tx_dropped = Counter('gpon_network_transmit_dropped', 'TX dropped per interface', ['ip', 'iface'])
+_sfp_net_last = {}  # (ip, iface, metric_name) -> last absolute
+
 # ----- Alarms (diag gpon get alarm-status) ----------------------------------
 ALARM_KEYS = {
     'LOS':         ('los',         'Loss of Signal'),
@@ -469,7 +482,18 @@ def handle_loidauth(text, ip):
 
 
 def handle_sn(text, ip):
+    # Two formats this handler accepts:
+    #   1. The legacy `omcicli get sn` output (`SerialNumber: DSNW...`),
+    #      kept so test fixtures and older firmware paths still parse.
+    #   2. The current source: `ps` output with the omci_app daemon's
+    #      command line carrying `-s DSNW...`. omcicli is broken on at
+    #      least V1.0-220923 (returns the MIB TOC for every verb), so we
+    #      pull the serial from the daemon's argv instead. omci_app
+    #      always runs with `-s <SN>` because that's how it knows which
+    #      ONU identity to register with the OLT.
     m = re.search(r'SerialNumber:\s*(\S+)', text)
+    if not m:
+        m = re.search(r'omci_app[^\n]*\s-s\s+(\S+)', text)
     if m:
         device_info.labels(ip=ip).info({'serial_number': m.group(1)})
 
@@ -541,6 +565,48 @@ def handle_eth0_mac(text, ip):
         mac_info.labels(ip=ip).info({'mac': m.group(1).lower()})
 
 
+# /proc/net/dev columns after `iface:` -- this is the standard kernel format
+# (Linux 2.6+; Documentation/filesystems/proc.txt). 16 fields total, 8 RX + 8 TX.
+_PROC_NET_DEV_FIELDS = [
+    ('rx_bytes',   sfp_net_rx_bytes),
+    ('rx_packets', sfp_net_rx_packets),
+    ('rx_errs',    sfp_net_rx_errors),
+    ('rx_drop',    sfp_net_rx_dropped),
+    None, None, None, None,  # rx_fifo, rx_frame, rx_compressed, rx_multicast (skipped)
+    ('tx_bytes',   sfp_net_tx_bytes),
+    ('tx_packets', sfp_net_tx_packets),
+    ('tx_errs',    sfp_net_tx_errors),
+    ('tx_drop',    sfp_net_tx_dropped),
+]
+
+def handle_proc_net_dev(text, ip):
+    for line in text.splitlines():
+        if ':' not in line:
+            continue  # header rows
+        iface, _, rest = line.partition(':')
+        iface = iface.strip()
+        cols = rest.split()
+        if len(cols) < 16:
+            continue
+        for i, field in enumerate(_PROC_NET_DEV_FIELDS):
+            if field is None:
+                continue
+            name, counter = field
+            try:
+                absolute = int(cols[i])
+            except ValueError:
+                continue
+            key = (ip, iface, name)
+            prev = _sfp_net_last.get(key)
+            if prev is None:
+                counter.labels(ip=ip, iface=iface)  # materialise at zero
+            elif absolute < prev:
+                pass  # SFP rebooted or interface counters reset; rebase
+            else:
+                counter.labels(ip=ip, iface=iface).inc(absolute - prev)
+            _sfp_net_last[key] = absolute
+
+
 def handle_firmware(text, ip):
     # /etc/version line looks like: "V1.0-220923 --  Fri Sep 23 19:36:10 CST 2022"
     # Reject BusyBox-style error output (e.g. "cat: can't open ...",
@@ -576,7 +642,6 @@ def counter_block(section):
 OMCI_PROBES = [
     ('authuptime',   'omcicli get authuptime',                handle_authuptime),
     ('loidauth',     'omcicli get loidauth',                  handle_loidauth),
-    ('sn',           'omcicli get sn',                        handle_sn),
 ]
 
 DIAG_PROBES = [
@@ -585,6 +650,8 @@ DIAG_PROBES = [
     ('proc_meminfo', 'cat /proc/meminfo',                     handle_proc_meminfo),
     ('proc_uptime',  'cat /proc/uptime',                      handle_proc_uptime),
     ('eth0_mac',     'cat /sys/class/net/eth0/address',       handle_eth0_mac),
+    ('net_dev',      'cat /proc/net/dev',                     handle_proc_net_dev),
+    ('sn',           'ps',                                    handle_sn),
     ('bias_current', 'diag pon get transceiver bias-current',
         simple(bias_current_gauge, _ma_to_amperes)),
     ('rx_power',     'diag pon get transceiver rx-power',     simple(rx_power_gauge,    _signed_float)),
