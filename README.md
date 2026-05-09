@@ -209,16 +209,16 @@ The ONU is fixed at `192.168.1.1/24` with no return route off that subnet.
 On your gateway, claim an unused IP in `192.168.1.0/24` on the SFP-facing
 port and src-NAT traffic to `192.168.1.1` to that IP.
 
-```routeros
-# MikroTik
-/ip/address/add address=192.168.1.10/24 interface=<sfp-interface>
-/ip/firewall/nat/add chain=srcnat action=src-nat dst-address=192.168.1.1 to-addresses=192.168.1.10
-```
-
 ```sh
 # Linux / nftables
 sudo ip addr add 192.168.1.10/24 dev eth1
 sudo nft add rule ip nat postrouting ip daddr 192.168.1.1 snat to 192.168.1.10
+```
+
+```routeros
+# MikroTik
+/ip/address/add address=192.168.1.10/24 interface=<sfp-interface>
+/ip/firewall/nat/add chain=srcnat action=src-nat dst-address=192.168.1.1 to-addresses=192.168.1.10
 ```
 
 ```pf
