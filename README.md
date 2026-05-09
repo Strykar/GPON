@@ -48,7 +48,7 @@ python3 gpon_exporter.py --device admin@192.168.1.1
 #        static_configs:
 #          - targets: ['127.0.0.1:8114']
 
-# 4. import dashboard.json into Grafana, pick your Prometheus as the datasource.
+# 4. import dashboard.json into Grafana, pick the appropriate Prometheus datasource.
 ```
 
 A `scrape_interval` between the exporter's `--interval` (default 5m) and
