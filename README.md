@@ -183,27 +183,25 @@ just don't get healthy/unhealthy status in `podman ps`.
 
 ### Proxmox (LXC)
 
-Create a Debian 12 unprivileged LXC, then inside it (`pct enter <vmid>`
-lands you as root, so `sudo` is shown for parity with the rest of the
-README; drop it if you're already root):
+Create a Debian 12 unprivileged LXC and enter it as root with
+`pct enter <vmid>` from the Proxmox host. Then:
 
 ```sh
-sudo apt install -y git python3-paramiko python3-prometheus-client
-sudo git clone https://github.com/Strykar/GPON.git /opt/GPON
-sudo cp /opt/GPON/odi.service /etc/systemd/system/
+$ apt install -y git python3-paramiko python3-prometheus-client
+$ git clone https://github.com/Strykar/GPON.git /opt/GPON
+$ cp /opt/GPON/odi.service /etc/systemd/system/
 # edit ExecStart in /etc/systemd/system/odi.service to point at
 # /opt/GPON/gpon_exporter.py and your SFP's IP
-sudo install -m 0600 -o root -g root /dev/null /etc/gpon-exporter/credentials
-sudo "$EDITOR" /etc/gpon-exporter/credentials   # ONU_SSH_PASSWORD=...
-sudo systemctl daemon-reload
-sudo systemctl enable --now odi
+$ install -m 0600 -o root -g root /dev/null /etc/gpon-exporter/credentials
+$ "$EDITOR" /etc/gpon-exporter/credentials   # ONU_SSH_PASSWORD=...
+$ systemctl daemon-reload
+$ systemctl enable --now odi
 ```
 
-The LXC needs a route to the SFP's management IP -- in practice, a
-default route to your LAN gateway plus the gateway-side rule described
-under Networking below.
+If the LXC's subnet differs from the ONU's, see the next section for
+the gateway-side src-NAT rule.
 
-## Networking: when your LAN isn't on the ONU's subnet
+## Reaching the ONU from another subnet
 
 The ONU is fixed at `192.168.1.1/24` with no return route off that subnet.
 On your gateway, claim an unused IP in `192.168.1.0/24` on the SFP-facing
