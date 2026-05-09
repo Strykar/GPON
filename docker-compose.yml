@@ -12,10 +12,13 @@ services:
     env_file: .env
     # bind-address must be 0.0.0.0 *inside* the container so the port
     # mapping above can reach the listener; the host-side binding above
-    # is what controls reachability.
+    # is what controls reachability. --known-hosts '' disables the host-key
+    # persistence file because USER nobody's $HOME is /nonexistent in this
+    # image; without this, every fetch logs a "permission denied" warning.
     command: >
       --device ${ONU_DEVICE}
       --webserver-port 8114
       --bind-address 0.0.0.0
+      --known-hosts ''
     mem_limit: 128m
     cpus: 0.5

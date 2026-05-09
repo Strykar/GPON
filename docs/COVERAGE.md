@@ -243,7 +243,7 @@ frames per second on the primary axis.
 
 ### `process_*` queries keep the `job=` filter; `gpon_*` queries drop it
 
-`process_*` metrics come from prometheus_client and exist for *any*
+`process_*` metrics come from prometheus_client and exist for _any_
 exporter Prometheus scrapes, so they need `job="gpon_exporter"` to
 disambiguate. `gpon_*` metric names are unique to this exporter, so the
 filter is redundant noise on those queries and we don't include it.
@@ -254,3 +254,146 @@ filter is redundant noise on those queries and we don't include it.
 zero in healthy operation. A timeseries chart of two flat zero lines is
 uninformative. A stat panel ("0 events" green, non-zero red) conveys the
 same thing more compactly and gets attention only when something fires.
+
+## Metric reference (by category)
+
+About 75 metrics in total. The probe → metric → panel mapping above is
+the source of truth; this section organises the same set by category for
+readers who want a quick "what kinds of things does this expose?".
+
+All cumulative device counters carry the `_total` suffix and Prometheus
+type `counter`. Gauges, Info, and the temperature/voltage/optical readouts
+do not.
+
+### Optical readouts (Gauge)
+
+| Metric | What it is |
+| --- | --- |
+| `gpon_temperature_celsius` | SFP SoC temperature |
+| `gpon_voltage_volts` | Supply voltage |
+| `gpon_tx_power_dbm` | Tx optical power |
+| `gpon_rx_power_dbm` | Rx optical power |
+| `gpon_bias_current_amperes` | Laser bias current. Device reports mA; the parser scales to amperes for Prometheus base-unit convention. |
+
+### State and alarms (Gauge)
+
+| Metric | What it is |
+| --- | --- |
+| `gpon_onu_state` | 1=O1 Initial .. 5=O5 Operation .. 7=O7 Emergency Stop. `0` means the parser didn't recognise the state output (probable firmware change). |
+| `gpon_alarm_los`, `_lof`, `_lom`, `_sf`, `_sd`, `_tx_too_long`, `_tx_mismatch` | Alarm gauges. `1` = raised, `0` = clear. |
+
+### Downstream PHY counters (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_bip_error_bits_total` | BIP-8 error bits detected downstream |
+| `gpon_ds_bip_error_blocks_total` | BIP-8 error blocks detected |
+| `gpon_ds_fec_correct_bits_total` | Bits corrected by FEC |
+| `gpon_ds_fec_correct_bytes_total` | Bytes corrected by FEC |
+| `gpon_ds_fec_correct_codewords_total` | Codewords FEC successfully corrected |
+| `gpon_ds_fec_uncorrectable_codewords_total` | Codewords FEC could not recover |
+| `gpon_ds_superframe_los_total` | Superframe-level loss-of-signal events |
+| `gpon_ds_plen_fail_total` | Packet-length validation failures |
+| `gpon_ds_plen_correct_total` | Packet-length validations passed |
+
+### Downstream PLOAM (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_ploam_received_total` | PLOAM messages received |
+| `gpon_ds_ploam_crc_errors_total` | PLOAM messages with CRC failures |
+| `gpon_ds_ploam_processed_total` | PLOAM messages handed off to upper layers |
+| `gpon_ds_ploam_overflow_total` | PLOAM queue overflow events |
+| `gpon_ds_ploam_unknown_total` | PLOAM messages of unrecognised type |
+
+### Downstream BWMAP (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_bwmap_received_total` | Bandwidth-map messages from the OLT |
+| `gpon_ds_bwmap_crc_errors_total` | BWMAP messages with CRC failures |
+| `gpon_ds_bwmap_overflow_total` | BWMAP queue overflow events |
+| `gpon_ds_bwmap_invalid0_total` | Invalid-type-0 BWMAP entries |
+| `gpon_ds_bwmap_invalid1_total` | Invalid-type-1 BWMAP entries |
+
+### Downstream OMCI (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_omci_received_total` | OMCI messages received |
+| `gpon_ds_omci_bytes_total` | OMCI bytes received |
+| `gpon_ds_omci_processed_total` | OMCI messages processed |
+| `gpon_ds_omci_dropped_total` | OMCI messages dropped |
+| `gpon_ds_omci_crc_errors_total` | OMCI CRC failures |
+
+### Downstream Ethernet (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_ethernet_unicast_total` | Unicast frames |
+| `gpon_ds_ethernet_multicast_total` | Multicast frames |
+| `gpon_ds_ethernet_multicast_forwarded_total` | Multicast frames forwarded by the SFP |
+| `gpon_ds_ethernet_multicast_leaked_total` | Multicast frames not forwarded as expected |
+| `gpon_ds_ethernet_fcs_errors_total` | FCS errors |
+
+### Downstream GEM and HEC (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_ds_gem_idle_total` | Idle GEM frames (saturates at 2^32-1, see [QUIRKS](QUIRKS.md)) |
+| `gpon_ds_gem_non_idle_total` | Data-carrying GEM frames; the link-utilisation indicator |
+| `gpon_ds_gem_los_total` | GEM-level loss-of-signal events |
+| `gpon_ds_gem_over_interleave_total` | GEM over-interleave events |
+| `gpon_ds_gem_mis_packet_length_total` | GEM packet-length mismatches |
+| `gpon_ds_gem_multi_flow_match_total` | GEM multi-flow match events |
+| `gpon_ds_hec_correct_total` | HEC corrections applied |
+
+### Upstream (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_us_boh_total` | Burst overhead transmitted |
+| `gpon_us_dbr_total` | Dynamic bandwidth report messages |
+| `gpon_us_ploam_transmitted_total` | Upstream PLOAM messages transmitted |
+| `gpon_us_ploam_processed_total` | Upstream PLOAM messages processed |
+| `gpon_us_ploam_urgent_total` | Urgent PLOAM messages |
+| `gpon_us_ploam_urgent_processed_total` | Urgent PLOAM messages processed |
+| `gpon_us_ploam_normal_total` | Normal PLOAM messages |
+| `gpon_us_ploam_normal_processed_total` | Normal PLOAM messages processed |
+| `gpon_us_ploam_serial_number_total` | Serial-number PLOAM messages |
+| `gpon_us_ploam_nomsg_total` | "No message" upstream PLOAM slots |
+| `gpon_us_omci_transmitted_total` | Upstream OMCI messages transmitted |
+| `gpon_us_omci_processed_total` | Upstream OMCI messages processed |
+| `gpon_us_omci_bytes_total` | Upstream OMCI bytes |
+| `gpon_us_gem_blocks_total` | Upstream GEM blocks |
+| `gpon_us_gem_bytes_total` | Upstream GEM bytes |
+
+### Activation and rogue (Counter)
+
+| Metric | What it counts |
+| --- | --- |
+| `gpon_activation_sn_requests_total` | Serial-number requests from the OLT |
+| `gpon_activation_ranging_requests_total` | Ranging requests from the OLT |
+| `gpon_rogue_sd_too_long_total` | "SD too long" rogue detections |
+| `gpon_rogue_sd_mismatch_total` | "SD mismatch" rogue detections |
+
+### `--enable-omci` extras (Gauge / Info)
+
+| Metric | Type | What it is |
+| --- | --- | --- |
+| `gpon_pon_uptime_seconds` | Gauge | Authenticated PON uptime in seconds |
+| `gpon_loid_auth_status` | Gauge | LOID authentication state (1 = authenticated) |
+| `gpon_loid_auth_attempts` | Gauge | LOID authentication attempts |
+| `gpon_loid_auth_success` | Gauge | LOID authentication successes |
+| `gpon_device_info{serial_number=...}` | Info | SFP serial number, exposed as a label |
+
+### Self-health metrics
+
+| Metric | Type | What it is |
+| --- | --- | --- |
+| `gpon_exporter_up` | Gauge | `1` if last fetch succeeded, `0` if it failed. Per device. |
+| `gpon_exporter_fetch_seconds` | Gauge | Wall-clock seconds for the last fetch attempt. |
+| `gpon_exporter_last_fetch_timestamp` | Gauge | Unix timestamp of the last successful fetch. |
+| `gpon_exporter_fetch_failures_total` | Counter | Fetch failures since the daemon started. |
+| `gpon_firmware_info{version=...}` | Info | Firmware version captured from the SFP's `/etc/version`. |
+| `gpon_exporter_info{version=...}` | Info | This exporter's version (pulled from `__version__` in the source so it can't drift from CI/Docker pins). |

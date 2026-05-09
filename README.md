@@ -1,7 +1,22 @@
 # GPON
 
-Notes, firmware, a Prometheus collector, and a Grafana dashboard for the
-HSGQ / ODI (Realtek RTL960x) GPON SFP.
+This repo ships:
+
+- **`gpon_exporter.py`** -- a Python Prometheus exporter that scrapes
+  ~75 metrics from an HSGQ / ODI (Realtek RTL960x) GPON SFP over SSH,
+  using the on-device `diag` and `omcicli` CLIs.
+- **`dashboard.json`** -- a Grafana dashboard that visualises those
+  metrics: optical readings, alarms, ONU state, FEC/BIP/PLOAM/BWMAP
+  counters, and collector self-health.
+- **`firmware/`** -- the four known M110 SFU and M114/V1.1.3 HGU firmware
+  tarballs, mirrored on the [Releases](https://github.com/Strykar/GPON/releases) page.
+- **`docs/`** -- the SFP spec sheet, user manual, an EPON/GPON activation
+  paper, plus [QUIRKS](docs/QUIRKS.md), [COVERAGE](docs/COVERAGE.md),
+  [TROUBLESHOOTING](docs/TROUBLESHOOTING.md), and [MIGRATION](docs/MIGRATION.md).
+
+If you can't SSH into the SFP, the Lua web-scraper at
+[Anime4000/RTL960x discussion #466](https://github.com/Anime4000/RTL960x/discussions/466)
+is the alternative.
 
 ![HSGQ XPON-Stick GPON SFP](docs/hsgq_onu.png)
 
@@ -9,29 +24,17 @@ HSGQ / ODI (Realtek RTL960x) GPON SFP.
 
 > Upgrading from a pre-v1.0.0 install? See [docs/MIGRATION.md](docs/MIGRATION.md).
 
-## Scope
-
-The collector talks to the SFP over SSH and runs Realtek's `diag` and
-`omcicli` utilities. That makes it stable across firmware revisions because
-the CLI output format barely changes, in contrast to web-scraping collectors
-that break whenever the vendor reshuffles `/stats.asp` (see issue #3).
-
-If you cannot SSH to your SFP, the Lua web-scraper at
-[Anime4000/RTL960x discussion #466](https://github.com/Anime4000/RTL960x/discussions/466)
-is the alternative.
-
-Verified on firmware **V1.0-220923** (M110 SFU). The 240408 SFU and
-2023-10-21 / V1.1.3-2025-06-20 HGU builds are available as
-[Releases](https://github.com/Strykar/GPON/releases) and should work given
-the diag CLI compatibility, but I haven't tested those personally.
-
 ## How to use
 
 The shortest path from "fresh repo" to "metrics in Grafana":
 
 ```sh
-# 1. install runtime deps
-pip install -r requirements.txt
+# 1. install runtime deps -- pick ONE of these (see Requirements below)
+sudo pacman -S python-paramiko python-prometheus_client    # Arch
+# OR
+sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu
+# OR
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # any distro
 
 # 2. run the exporter against your SFP
 export ONU_SSH_PASSWORD='your-password-here'
@@ -52,92 +55,40 @@ the Docker compose file ([Docker / Podman](#docker--podman)) instead of
 running by hand. Multi-ONU and Proxmox/LXC are documented further down.
 
 If something doesn't look right, the first thing to run is
-`gpon_exporter.py --diagnose` -- it prints raw probe output and is the
-fastest way to tell whether the SFP, the credentials, or the parser is
-the issue. See [Troubleshooting](#troubleshooting).
+`gpon_exporter.py --diagnose` -- see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## What it exposes
 
-About 75 metrics. All `gpon_*` device counters come from one of three SFP
-commands: `diag pon get transceiver ...`, `diag gpon ...`, and (optionally)
-`omcicli get ...`.
+~75 metrics in total -- optical readouts, ONU state, alarms, downstream
+PHY/PLOAM/BWMAP/OMCI/Ethernet/GEM counters, upstream counters, activation,
+rogue-SD, optional OMCI extras, and exporter self-health. Full per-metric
+tables grouped by category live in [docs/COVERAGE.md](docs/COVERAGE.md).
 
-### Optical readouts
-
-| Metric | What it is |
-| --- | --- |
-| `gpon_temperature_celsius` | SFP SoC temperature |
-| `gpon_voltage_volts` | Supply voltage |
-| `gpon_tx_power_dbm` | Tx optical power |
-| `gpon_rx_power_dbm` | Rx optical power |
-| `gpon_bias_current_amperes` | Laser bias current. Device reports mA; the parser scales to amperes for Prometheus base-unit convention. |
-
-### State and alarms
-
-| Metric | What it is |
-| --- | --- |
-| `gpon_onu_state` | 1=O1 Initial .. 5=O5 Operation .. 7=O7 Emergency Stop. `0` means the parser didn't recognise the state output (probable firmware change). |
-| `gpon_alarm_los`, `_lof`, `_lom`, `_sf`, `_sd`, `_tx_too_long`, `_tx_mismatch` | Alarm gauges. `1` = raised, `0` = clear. |
-
-### Downstream PHY counters (BIP / FEC / superframe / PLEN)
-
-`gpon_ds_bip_error_bits`, `gpon_ds_bip_error_blocks`,
-`gpon_ds_fec_correct_bits`, `gpon_ds_fec_correct_bytes`,
-`gpon_ds_fec_correct_codewords`, `gpon_ds_fec_uncorrectable_codewords`,
-`gpon_ds_superframe_los`, `gpon_ds_plen_fail`, `gpon_ds_plen_correct`.
-
-### Downstream PLOAM / BWMAP / OMCI / Ethernet / GEM
-
-`gpon_ds_ploam_received`, `_crc_errors`, `_processed`, `_overflow`, `_unknown`;
-`gpon_ds_bwmap_received`, `_crc_errors`, `_overflow`, `_invalid0`, `_invalid1`;
-`gpon_ds_omci_received`, `_bytes`, `_processed`, `_dropped`, `_crc_errors`;
-`gpon_ds_ethernet_unicast`, `_multicast`, `_multicast_forwarded`,
-`_multicast_leaked`, `_fcs_errors`;
-`gpon_ds_gem_idle`, `_non_idle`, `_los`, `_over_interleave`,
-`_mis_packet_length`, `_multi_flow_match`, `gpon_ds_hec_correct`.
-
-### Upstream
-
-`gpon_us_boh`, `gpon_us_dbr`,
-`gpon_us_ploam_transmitted`, `_processed`, `_urgent`, `_urgent_processed`,
-`_normal`, `_normal_processed`, `_serial_number`, `_nomsg`,
-`gpon_us_omci_transmitted`, `_processed`, `_bytes`,
-`gpon_us_gem_blocks`, `_bytes`.
-
-### Activation and rogue counters
-
-`gpon_activation_sn_requests`, `gpon_activation_ranging_requests`,
-`gpon_rogue_sd_too_long`, `gpon_rogue_sd_mismatch`.
-
-### `--enable-omci` extras
-
-`gpon_pon_uptime_seconds`,
-`gpon_loid_auth_status`, `_attempts`, `_success`,
-`gpon_device_info{serial_number=...}`.
-
-### Self-health metrics
-
-| Metric | What it is |
-| --- | --- |
-| `gpon_exporter_up` | `1` if last fetch succeeded, `0` if it failed. Per device. |
-| `gpon_exporter_fetch_seconds` | Wall-clock seconds for the last fetch attempt. |
-| `gpon_exporter_last_fetch_timestamp` | Unix timestamp of the last successful fetch. |
-| `gpon_exporter_fetch_failures_total` | Counter of fetch failures since the daemon started. |
-| `gpon_firmware_info{version=...}` | Firmware version captured from the SFP's `/etc/version`. |
-| `gpon_exporter_info{version=...}` | This exporter's version (pulled from `__version__` in the source so it can't drift from CI/Docker pins). |
-
-All cumulative device counters (BIP, FEC, BWMAP, Ethernet, GEM, OMCI, PLOAM,
-activation, rogue-SD) are exposed as Prometheus **Counters** with a `_total`
-suffix on the metric name. Use `rate(metric_total[15m])` in dashboards and
-alerts. Counter resets (SFP reboot) are handled correctly by `rate()` without
-state in the collector.
+All cumulative device counters are real Prometheus **Counters** with a
+`_total` suffix; use `rate(metric_total[15m])` in dashboards and alerts.
 
 ## Running it
 
 ### Requirements
 
+Two runtime deps: `paramiko>=3.0` and `prometheus_client>=0.17`. Both are
+in standard distro repos -- prefer them over `pip` so you don't have to
+opt out of PEP 668 with `--break-system-packages` and risk a broken
+system Python.
+
 ```sh
-pip install -r requirements.txt   # paramiko, prometheus_client
+sudo pacman -S python-paramiko python-prometheus_client      # Arch
+sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu/Proxmox LXC
+```
+
+If you need a newer version than your distro ships, or you're on a system
+without those packages, use a venv (never `pip install` into the system
+interpreter on a modern distro):
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+# then run with .venv/bin/python3 instead of plain python3
 ```
 
 ### Standalone
@@ -197,33 +148,48 @@ and a 0644 file with `ONU_SSH_PASSWORD=...` is a foot-gun on a multi-user host.
 
 ### Docker / Podman
 
+The same `Dockerfile` and `docker-compose.yml` work under both runtimes.
+Locally tested with podman 5.8.2 + podman-compose; the docker path is the
+same syntax.
+
 ```sh
-cp .env.example .env       # then fill in credentials
-docker compose up -d       # or: podman-compose up -d
+cp .env.example .env             # then fill in credentials in .env
+podman compose up -d             # podman + podman-compose
+# or
+docker compose up -d             # docker engine + the compose plugin
 ```
 
-The same `Dockerfile` and `docker-compose.yml` work under both runtimes. The
-container has a `HEALTHCHECK` that pulls `/metrics` so `docker ps` shows
-healthy/unhealthy state. The host port is bound to `127.0.0.1:8114` by
-default; switch to `8114:8114` in the compose file if Prometheus runs on
-another machine.
+The host port is bound to `127.0.0.1:8114` by default. Switch to `8114:8114`
+in the compose file if Prometheus runs on another machine.
+
+The container's `HEALTHCHECK` (pulls `/metrics`, marks unhealthy on
+failure) only takes effect when the image is built with the docker
+manifest format. Docker uses that format by default; podman defaults to
+OCI and silently ignores `HEALTHCHECK`. To honour it under podman, build
+with `podman build --format docker -t gpon-exporter:latest .` first, then
+bring the stack up. Without that flag the exporter still runs fine, you
+just don't get healthy/unhealthy status in `podman ps`.
 
 **The compose file is single-device.** Multiple SFPs need either
-`docker compose -p` per device with separate `.env` files, or a manual
-multi-service rewrite. Same caveat as Standalone above.
+`docker compose -p` (or `podman compose -p`) per device with separate
+`.env` files, or a manual multi-service rewrite.
 
 ### Proxmox (LXC)
 
-Create a Debian 12 unprivileged LXC, then inside it:
+Create a Debian 12 unprivileged LXC, then inside it (`pct enter <vmid>`
+lands you as root, so `sudo` is shown for parity with the rest of the
+README; drop it if you're already root):
 
 ```sh
-apt install -y python3-pip git
-git clone https://github.com/Strykar/GPON.git
-cd GPON
-pip install --break-system-packages -r requirements.txt
-cp odi.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now odi
+sudo apt install -y git python3-paramiko python3-prometheus-client
+sudo git clone https://github.com/Strykar/GPON.git /opt/GPON
+sudo cp /opt/GPON/odi.service /etc/systemd/system/
+# edit ExecStart in /etc/systemd/system/odi.service to point at
+# /opt/GPON/gpon_exporter.py and your SFP's IP
+sudo install -m 0600 -o root -g root /dev/null /etc/gpon-exporter/credentials
+sudo "$EDITOR" /etc/gpon-exporter/credentials   # ONU_SSH_PASSWORD=...
+sudo systemctl daemon-reload
+sudo systemctl enable --now odi
 ```
 
 Make sure the LXC has a route to the SFP's management IP.
