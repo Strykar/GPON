@@ -68,3 +68,189 @@ uninformative on a healthy link. Listed for completeness:
 - `diag gpon show counter global us-omci`: `gpon_us_omci_processed_total`, `gpon_us_omci_transmitted_total`, `gpon_us_omci_bytes_total`
 - `diag gpon show counter global us-gem`: `gpon_us_gem_blocks_total`, `_bytes_total`
 - `diag gpon show counter global us-dbr`: `gpon_us_dbr_total`
+
+## Dashboard layout
+
+`dashboard.json` is organised into six rows. Two are collapsed by default
+(Attenuation and Collector health) since they're reference / diagnostic
+content; the rest are open.
+
+The dashboard's `$instance` and `$ip` template variables filter by scrape
+target and SFP IP for multi-device setups. Default time range is `now-15m`,
+which covers about three fetch cycles at the default 5-minute interval.
+
+### Attenuation (collapsed)
+
+Static reference content, three side-by-side text panels:
+
+- **Common attenuation sources**: link-budget cheat sheet (loss per km on
+  1310/1490 nm, splice loss, connector loss, splitter loss formula). Plus
+  references to UISP's GPON design guide, an ONU registration-state primer,
+  and the EPON/GPON/XG-PON activation paper.
+- **Tech specs**: HSGQ XPON-Stick form factor, electrical, and mode tables.
+- **Features**: wavelengths, GPON/EPON line rates, MSA/DDM compliance, ITU-T
+  standards, laser-class and RoHS marks.
+
+### ONU status
+
+Three stat panels at the top of the dashboard. Designed to answer "is the
+link healthy right now?" at a glance.
+
+- **ONU state**: integer 1-7 (O1..O7). 5 (Operation) is the only good
+  state; anything else means we're not actually carrying traffic. `0` is
+  the parser's "I don't recognise this output" sentinel -- read it as
+  "firmware drift", not "state O0".
+- **Alarms**: seven cells, one per alarm bit. Green `OK` = clear, red
+  `RAISED` = active. Severity, worst first: Loss of Signal (catastrophic),
+  Loss of Frame / Loss of MAC / Signal Fail (severe), Signal Degraded
+  (warning), TX Too Long / TX Mismatch (config issues).
+- **Activation events (last 1h)**: `sum(increase(gpon_activation_sn_requests_total[1h])) +
+  sum(increase(gpon_activation_ranging_requests_total[1h]))`. The `sum()`
+  wrapper folds any historical series with a different label set into a
+  single cell -- needed because exporter restarts that change labels leave
+  stale series queryable for the retention window. Healthy operation is
+  zero events; non-zero usually means the OLT bounced you.
+
+### Laser / CPU / RAM / Voltage / Temperature
+
+Six gauges. Instant readouts of the values that matter for "is this SFP
+operating inside spec?". Each gauge uses the metric directly with
+`legendFormat={{instance}}` so multi-device setups label cleanly.
+
+- **Laser Tx (1310 nm)**: `gpon_tx_power_dbm`. Factory range 0.5–5.0 dBm.
+  Green inside spec, orange near the edges, red out of spec.
+- **Laser Rx (1490 nm)**: `gpon_rx_power_dbm`. Factory range -27 to -8 dBm.
+  Same colour banding. Below -27 dBm = link is too dark to operate.
+- **SFP voltage**: `gpon_voltage_volts`. Nominal 3.3 V; thresholds at
+  3.135 V (-5%) and 3.465 V (+5%).
+- **RAM**: `process_resident_memory_bytes`. Healthy steady-state is
+  ~50 MiB; thresholds at 100 / 200 MiB flag a leak.
+- **CPU**: `100 * rate(process_cpu_seconds_total[5m])` -- converts seconds
+  per second to percent of one core. Threshold 5/20% flags a runaway loop.
+- **SoC temperature**: `gpon_temperature_celsius`. Commercial-temp range
+  0–70 °C; thresholds at 60 and 80 °C.
+
+### Temperature & GPON signal metrics
+
+The same four optical metrics as the gauges above, but as timeseries to
+show movement over the dashboard window. Filled lines, smooth interpolation,
+threshold red/orange zones drawn behind the line so out-of-spec excursions
+are obvious without checking the y-axis.
+
+- **SFP (commercial) SoC temperature**: temperature trend.
+- **Signal Tx power**: Tx power trend with threshold bands.
+- **Signal Rx power**: Rx power trend with threshold bands.
+- **Bias current**: `gpon_bias_current_amperes`. Climbing bias current
+  with flat or falling Tx power is the textbook laser-aging signature.
+
+### GPON counters (diag-only)
+
+All cumulative-counter timeseries with `rate(metric_total[15m])`. The
+counter type and rate-window choices are explained under [query
+conventions](#query-conventions) below.
+
+- **FEC corrected codewords/sec** (`corrected`): rate of FEC correction
+  events. Non-zero is normal.
+- **FEC uncorrectable codewords/sec** (`uncorrectable`): rate of codewords
+  the FEC layer couldn't recover. Non-zero means bit errors are leaking
+  upstream -- a real alert signal.
+- **Downstream BIP errors/sec** (`error bits` + `error blocks`): bit
+  interleaved parity error counters. Like FEC uncorrectable, this is the
+  link-quality canary.
+- **Downstream Ethernet frames/sec** (`unicast`, `multicast`, `FCS errors`):
+  three series; the FCS errors series is pinned to a secondary y-axis
+  because it's typically zero against thousands of frames per second on
+  the primary axis.
+- **Downstream BWMAP/sec** (`received`, `CRC errors`): bandwidth-map
+  messages from the OLT, plus CRC errors on the same. Same secondary-y-axis
+  treatment for the error series.
+- **PLOAM messages/sec** (`DS received`, `DS CRC errors`, `US transmitted`):
+  PLOAM (Physical Layer Operation, Administration and Maintenance) message
+  counts per direction. CRC errors on secondary y-axis.
+- **Downstream GEM data frame rate** (`non-idle frames`):
+  `gpon_ds_gem_non_idle` rate. The idle counter saturates at 2^32-1 so the
+  dashboard charts only the non-idle side as the link-utilisation indicator
+  (see [QUIRKS](QUIRKS.md)).
+- **OMCI message rate** (`DS received`, `DS processed`): downstream OMCI
+  management message rate. Healthy steady-state is ~10 msg/s.
+
+### Collector health (collapsed)
+
+Self-metrics about the exporter process, not the SFP. Useful to confirm
+"is the collector working?" before assuming the SFP is the problem.
+
+- **Collector status**: `gpon_exporter_up`. 1 = last fetch succeeded.
+- **Firmware**: `gpon_firmware_info`'s `version` label, displayed via
+  `legendFormat={{version}}`.
+- **Last fetch**: `time() - gpon_exporter_last_fetch_timestamp` -- seconds
+  since the last successful fetch. Red if it grows past one fetch interval.
+- **Daemon uptime**: `time() - process_start_time_seconds`.
+- **Fetch duration**: `avg_over_time(gpon_exporter_fetch_seconds[5m])`.
+  Steady-state ~3 s on a healthy link; sustained climb suggests SFP load
+  or link degradation.
+- **Fetch failure rate**: `rate(gpon_exporter_fetch_failures_total[15m])`.
+  Real Counter, real `rate()`. Persistently non-zero means the daemon is
+  flapping, not just a one-off.
+
+## Query conventions
+
+A few patterns repeat across the dashboard; they're collected here so the
+panels themselves stay terse.
+
+### `rate(metric_total[15m])` for cumulative counters
+
+Every cumulative device counter is exposed as a Prometheus **Counter** type
+with a `_total` suffix (e.g. `gpon_ds_bwmap_received_total`). The
+exporter's `_AbsoluteCounter` wrapper translates the device's absolute
+running counters into proper `Counter.inc(delta)` calls, with explicit
+counter-reset handling for SFP reboots. Because the metric type is real
+Counter, `rate()` is the right function and there's no "metric might not
+be a counter" hint in Grafana.
+
+The 15-minute window matches the 5-minute fetch cadence: each window
+covers 2-3 actual fetches, smoothing out the synchronised step pattern a
+shorter window would show (every counter on the device updates at the same
+moment, once per fetch -- see [QUIRKS](QUIRKS.md) for the timing detail).
+If you change `--interval`, scale the window proportionally.
+
+### `sum(increase(...[1h]))` on the activation panel
+
+Wrapping `increase()` in `sum()` collapses any stale time series with a
+different label set into a single cell. Without it, an exporter restart
+that changes labels (or adds an `ip` value) leaves the previous series
+queryable for the retention window -- and a `[1h]` lookback scoops both up
+and renders them as separate panels. The `sum()` is safe given the
+single-device-per-exporter `$instance` filter; multi-device setups with
+shared exporters would want `sum by(ip)` instead.
+
+### Threshold-banded timeseries instead of heatmap for Tx/Rx
+
+We tried a heatmap reimagining of the Tx/Rx Power panels. Looked great for
+Tx (some natural variance, distribution visible) and broke ugly on Rx
+(samples mostly at one identical value, Grafana fills the whole y-range
+with cells, presenting as a solid block). Threshold-banded timeseries
+works on any data shape and immediately telegraphs "is the link inside
+spec?" without reading the y-axis numbers.
+
+### Secondary y-axis for mixed-magnitude series
+
+`Downstream Ethernet frames/sec`, `Downstream BWMAP/sec`, and
+`PLOAM messages/sec` chart traffic counts (thousands/sec) and error counts
+(typically 0) on the same panel. Auto-scaling y-axis hides the errors at
+the bottom of the chart. The error series is pinned to a secondary y-axis
+so a single FCS / CRC error is visible against thousands of unicast
+frames per second on the primary axis.
+
+### `process_*` queries keep the `job=` filter; `gpon_*` queries drop it
+
+`process_*` metrics come from prometheus_client and exist for *any*
+exporter Prometheus scrapes, so they need `job="gpon_exporter"` to
+disambiguate. `gpon_*` metric names are unique to this exporter, so the
+filter is redundant noise on those queries and we don't include it.
+
+### Activation churn as a stat, not timeseries
+
+`gpon_activation_sn_requests_total` and `_ranging_requests_total` are flat
+zero in healthy operation. A timeseries chart of two flat zero lines is
+uninformative. A stat panel ("0 events" green, non-zero red) conveys the
+same thing more compactly and gets attention only when something fires.
