@@ -201,7 +201,7 @@ sudo systemctl enable --now odi
 
 The LXC needs a route to the SFP's management IP -- in practice, a
 default route to your LAN gateway plus the gateway-side rule described
-under [Networking](#networking-when-your-lan-isnt-on-the-onus-subnet) below.
+under Networking below.
 
 ## Networking: when your LAN isn't on the ONU's subnet
 
