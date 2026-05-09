@@ -174,6 +174,7 @@ loid_auth_status_gauge  = Gauge('gpon_loid_auth_status',  'LOID authentication s
 loid_auth_attempts      = Gauge('gpon_loid_auth_attempts', 'LOID authentication attempts (Auth Num)', ['ip'])
 loid_auth_success       = Gauge('gpon_loid_auth_success',  'LOID authentication successes (Auth Success Num)', ['ip'])
 device_info = Info('gpon_device', 'GPON device identity', ['ip'])
+mac_info = Info('gpon_mac', 'MAC address of the SFP eth0 interface', ['ip'])
 firmware_info = Info('gpon_firmware', 'Firmware version reported by /etc/version', ['ip'])
 exporter_info = Info('gpon_exporter', 'gpon_exporter version and build identity')
 exporter_info.info({'version': __version__})
@@ -191,6 +192,26 @@ collector_last_fetch_timestamp = Gauge('gpon_exporter_last_fetch_timestamp',
 collector_fetch_failures = Counter('gpon_exporter_fetch_failures',
                                    'Total fetch failures since the collector started',
                                    ['ip'])
+
+# ----- SFP system stats (from /proc on the SFP) -----------------------------
+# CPU is exposed as a Counter with {ip, mode} labels, jiffies converted to
+# seconds via /HZ (kernel default 100 on Realtek MIPS 2.6.30). Same shape as
+# node_exporter's node_cpu_seconds_total; rate(gpon_cpu_seconds_total[5m])
+# gives per-mode CPU fraction. _AbsoluteCounter only handles a single {ip}
+# label, so the CPU counter is wired up manually with its own delta tracking.
+sfp_cpu_seconds_total = Counter('gpon_cpu_seconds',
+                                'CPU time on the SFP in seconds, by mode',
+                                ['ip', 'mode'])
+_sfp_cpu_last = {}  # (ip, mode) -> last absolute seconds, for delta tracking
+
+sfp_mem_total   = Gauge('gpon_memory_total_bytes',   'Total RAM on the SFP, in bytes', ['ip'])
+sfp_mem_free    = Gauge('gpon_memory_free_bytes',    'Free RAM on the SFP, in bytes', ['ip'])
+sfp_mem_buffers = Gauge('gpon_memory_buffers_bytes', 'Buffer cache on the SFP, in bytes', ['ip'])
+sfp_mem_cached  = Gauge('gpon_memory_cached_bytes',  'Page cache on the SFP, in bytes', ['ip'])
+sfp_uptime      = Gauge('gpon_system_uptime_seconds',
+                        'Seconds since the SFP booted (from /proc/uptime, distinct from '
+                        'gpon_pon_uptime_seconds which is PON authentication uptime)',
+                        ['ip'])
 
 # ----- Alarms (diag gpon get alarm-status) ----------------------------------
 ALARM_KEYS = {
@@ -453,6 +474,73 @@ def handle_sn(text, ip):
         device_info.labels(ip=ip).info({'serial_number': m.group(1)})
 
 
+# Field order in the cpu line (Linux 2.6.30 / kernel docs Documentation/filesystems/proc.txt):
+# user nice system idle iowait irq softirq steal guest. Steal/guest don't apply
+# on the Realtek SoC (no virtualisation); we expose the seven that do.
+_PROC_STAT_MODES = ('user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq')
+_HZ = 100  # kernel default on MIPS 2.6.30; matches what /proc/stat reports
+
+def handle_proc_stat(text, ip):
+    # Find the aggregate "cpu  ..." line (not per-CPU "cpu0", "cpu1" lines).
+    # `\s+` not just space because the kernel pads with two spaces.
+    for line in text.splitlines():
+        if line.startswith('cpu '):
+            parts = line.split()
+            # parts[0] == 'cpu', then up to 9 jiffy counters
+            for mode, raw in zip(_PROC_STAT_MODES, parts[1:1 + len(_PROC_STAT_MODES)]):
+                try:
+                    absolute_seconds = int(raw) / _HZ
+                except ValueError:
+                    continue
+                key = (ip, mode)
+                prev = _sfp_cpu_last.get(key)
+                if prev is None:
+                    # First-contact rule: silently baseline. inc()'ing the
+                    # full absolute would phantom-spike rate() at every restart.
+                    sfp_cpu_seconds_total.labels(ip=ip, mode=mode)
+                elif absolute_seconds < prev:
+                    pass  # SFP rebooted; rebase
+                else:
+                    sfp_cpu_seconds_total.labels(ip=ip, mode=mode).inc(absolute_seconds - prev)
+                _sfp_cpu_last[key] = absolute_seconds
+            return
+
+
+_MEMINFO_FIELDS = {
+    'MemTotal':  sfp_mem_total,
+    'MemFree':   sfp_mem_free,
+    'Buffers':   sfp_mem_buffers,
+    'Cached':    sfp_mem_cached,
+}
+
+def handle_proc_meminfo(text, ip):
+    # Lines look like: "MemTotal:          27528 kB". Always kB on this kernel.
+    for line in text.splitlines():
+        m = re.match(r'(\w+):\s*(\d+)\s*kB', line)
+        if not m:
+            continue
+        gauge = _MEMINFO_FIELDS.get(m.group(1))
+        if gauge:
+            gauge.labels(ip=ip).set(int(m.group(2)) * 1024)
+
+
+def handle_proc_uptime(text, ip):
+    # /proc/uptime: "<uptime_s> <idle_s>" -- two floats separated by space.
+    m = re.match(r'\s*([\d.]+)', text)
+    if m:
+        sfp_uptime.labels(ip=ip).set(float(m.group(1)))
+
+
+# eth0 is the LAN-side physical interface; br0 inherits the same MAC. PON-side
+# interfaces (pon0, nas0, eth0.{2,3}) carry placeholder MACs and are skipped.
+_MAC_RE = re.compile(r'^([0-9a-fA-F:]{17})\s*$')
+
+def handle_eth0_mac(text, ip):
+    m = _MAC_RE.search(text.strip())
+    if m:
+        mac_info.labels(ip=ip).info({'mac': m.group(1).lower()})
+
+
 def handle_firmware(text, ip):
     # /etc/version line looks like: "V1.0-220923 --  Fri Sep 23 19:36:10 CST 2022"
     # Reject BusyBox-style error output (e.g. "cat: can't open ...",
@@ -493,6 +581,10 @@ OMCI_PROBES = [
 
 DIAG_PROBES = [
     ('firmware',     'cat /etc/version',                      handle_firmware),
+    ('proc_stat',    'cat /proc/stat',                        handle_proc_stat),
+    ('proc_meminfo', 'cat /proc/meminfo',                     handle_proc_meminfo),
+    ('proc_uptime',  'cat /proc/uptime',                      handle_proc_uptime),
+    ('eth0_mac',     'cat /sys/class/net/eth0/address',       handle_eth0_mac),
     ('bias_current', 'diag pon get transceiver bias-current',
         simple(bias_current_gauge, _ma_to_amperes)),
     ('rx_power',     'diag pon get transceiver rx-power',     simple(rx_power_gauge,    _signed_float)),

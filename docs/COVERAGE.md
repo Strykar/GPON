@@ -17,6 +17,10 @@ and not duplicated here.
 | Probe command | Metric(s) | Dashboard panel(s) |
 | --- | --- | --- |
 | `cat /etc/version` | `gpon_firmware_info{version}` | Firmware |
+| `cat /proc/stat` | `gpon_cpu_seconds_total{mode}` | SFP CPU |
+| `cat /proc/meminfo` | `gpon_memory_total_bytes`, `_free_bytes`, `_buffers_bytes`, `_cached_bytes` | SFP RAM |
+| `cat /proc/uptime` | `gpon_system_uptime_seconds` | (not charted yet) |
+| `cat /sys/class/net/eth0/address` | `gpon_mac_info{mac}` | SFP MAC |
 | `diag pon get transceiver tx-power` | `gpon_tx_power_dbm` | Signal Tx power, Laser Tx (1310 nm) |
 | `diag pon get transceiver rx-power` | `gpon_rx_power_dbm` | Signal Rx power, Laser Rx (1490 nm) |
 | `diag pon get transceiver temperature` | `gpon_temperature_celsius` | SFP (commercial) SoC temperature, SoC temperature (gauge) |
@@ -386,6 +390,24 @@ do not.
 | `gpon_loid_auth_attempts` | Gauge | LOID authentication attempts |
 | `gpon_loid_auth_success` | Gauge | LOID authentication successes |
 | `gpon_device_info{serial_number=...}` | Info | SFP serial number, exposed as a label |
+
+### SFP system stats (Counter / Gauge)
+
+Sourced from `/proc/stat`, `/proc/meminfo`, and `/proc/uptime` on the
+SFP. CPU is exposed as a Counter so `rate()` gives per-mode utilisation
+the same way node_exporter does. Memory is split into the four fields
+the vendor web UI uses to compute its "Memory Usage %" number:
+`100 * (Total - Free - Buffers - Cached) / Total`.
+
+| Metric | Type | What it is |
+| --- | --- | --- |
+| `gpon_cpu_seconds_total{mode=...}` | Counter | CPU jiffies/HZ on the SFP, by mode (`user`, `nice`, `system`, `idle`, `iowait`, `irq`, `softirq`). HZ assumed 100 (kernel default for the Realtek MIPS 2.6.30 build). |
+| `gpon_memory_total_bytes` | Gauge | Total RAM (`MemTotal` from /proc/meminfo, scaled to bytes) |
+| `gpon_memory_free_bytes` | Gauge | Free RAM (`MemFree`) |
+| `gpon_memory_buffers_bytes` | Gauge | Buffer cache (`Buffers`) |
+| `gpon_memory_cached_bytes` | Gauge | Page cache (`Cached`) |
+| `gpon_system_uptime_seconds` | Gauge | Seconds since the SFP booted. Distinct from `gpon_pon_uptime_seconds`, which is PON authentication uptime. |
+| `gpon_mac_info{mac=...}` | Info | LAN-side MAC of the SFP (eth0), from `/sys/class/net/eth0/address`. Matches the vendor web UI's "MAC Address" field. |
 
 ### Self-health metrics
 

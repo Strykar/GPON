@@ -252,19 +252,19 @@
               },
               {
                 "color": "orange",
-                "value": 100
+                "value": 70
               },
               {
                 "color": "red",
-                "value": 200
+                "value": 90
               }
             ]
           },
-          "unit": "mbytes",
+          "unit": "percent",
           "unitScale": true,
           "decimals": 0,
           "min": 0,
-          "max": 200
+          "max": 100
         },
         "overrides": []
       },
@@ -301,14 +301,14 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes{job=\"gpon_exporter\", instance=~\"$instance\"} / (1024^2)",
+          "expr": "100 * (gpon_memory_total_bytes{instance=~\"$instance\"} - gpon_memory_free_bytes{instance=~\"$instance\"} - gpon_memory_buffers_bytes{instance=~\"$instance\"} - gpon_memory_cached_bytes{instance=~\"$instance\"}) / gpon_memory_total_bytes{instance=~\"$instance\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "RAM",
+      "title": "SFP RAM",
       "type": "gauge",
       "description": "Resident memory of the collector process (RSS) in MiB."
     },
@@ -332,11 +332,11 @@
               },
               {
                 "color": "orange",
-                "value": 5
+                "value": 50
               },
               {
                 "color": "red",
-                "value": 20
+                "value": 80
               }
             ]
           },
@@ -381,14 +381,14 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "100 * rate(process_cpu_seconds_total{job=\"gpon_exporter\", instance=~\"$instance\"}[15m])",
+          "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[5m])))",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "CPU",
+      "title": "SFP CPU",
       "type": "gauge",
       "description": "Collector process CPU usage rate (5m). Steady low value means the daemon is fetching normally."
     },
@@ -2270,7 +2270,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 80
+            "y": 84
           },
           "id": 129,
           "options": {
@@ -2368,7 +2368,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 80
+            "y": 84
           },
           "id": 130,
           "options": {
@@ -2477,6 +2477,252 @@
           ],
           "title": "Daemon uptime",
           "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "type": "timeseries",
+          "id": 150,
+          "title": "Exporter CPU",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 92
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "100 * rate(process_cpu_seconds_total{job=\"gpon_exporter\", instance=~\"$instance\"}[5m])",
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "mbytes"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "type": "timeseries",
+          "id": 151,
+          "title": "Exporter RAM",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 92
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "process_resident_memory_bytes{job=\"gpon_exporter\", instance=~\"$instance\"} / (1024*1024)",
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 152,
+          "title": "SFP MAC",
+          "type": "stat",
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 80
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "gpon_mac_info{instance=~\"$instance\"}",
+              "legendFormat": "{{mac}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "none",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "name"
+          },
+          "pluginVersion": "11.0.0"
         }
       ],
       "title": "Collector health",

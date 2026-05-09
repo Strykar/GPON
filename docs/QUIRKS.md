@@ -190,6 +190,35 @@ The single most consequential quirk we found.
 - HTTP/0.9 quirks: `curl` without `--http0.9` rejects the server's
   responses. If you script against `boa`, pass `--http0.9` explicitly.
 
+## /proc on the SFP
+
+The SFP runs Linux 2.6.30 with a sane-ish `/proc`, so the standard files
+work for system stats. The collector reads:
+
+- `/proc/stat` for CPU (Counter, jiffies/HZ=100, by mode).
+- `/proc/meminfo` for RAM (Gauges in bytes; `MemTotal/Free/Buffers/Cached`
+  is enough to reproduce the vendor web UI's "Memory Usage %" formula:
+  `(Total - Free - Buffers - Cached) / Total`).
+- `/proc/uptime` for `gpon_system_uptime_seconds` (distinct from the
+  PON-authentication uptime that `omcicli get authuptime` reports).
+- `/sys/class/net/eth0/address` for the LAN-side MAC.
+
+### `/proc/loadavg` is bogus on this SoC
+
+`cat /proc/loadavg` returns `2.00 2.00 2.00 1/64 N` -- all three averages
+exactly 2.00 regardless of actual load, observed across days of uptime.
+The kernel on this Realtek MIPS build either doesn't update the load
+counter or has it pinned to whatever it was at boot. We don't expose a
+`gpon_load_average` metric for that reason. Use the per-mode CPU counter
+(`rate(gpon_cpu_seconds_total{mode!="idle"}[5m])`) instead, which works.
+
+### BusyBox `head` and similar are missing
+
+BusyBox 1.12.4 on this firmware is sparse. Reading the first line of
+`/proc/stat` with `head -1` returns `sh: head: not found`. The collector
+handlers parse the full file in Python and pick the line they need
+(`startswith('cpu ')`) rather than relying on shell composition.
+
 ## Counter and metric oddities
 
 ### Counter values

@@ -329,3 +329,88 @@ def test_handler_tolerates_garbage_input():
     for _, _, handler in c.PROBES:
         handler('completely unrelated noise', IP)
         handler('', IP)
+
+
+def test_proc_meminfo_parses_kb_to_bytes():
+    """/proc/meminfo lines are 'Field: NNNN kB'. We translate to bytes (×1024)
+    and only expose the four fields the dashboard formula needs (Total, Free,
+    Buffers, Cached)."""
+    handler = next(h for k, _, h in c.PROBES if k == 'proc_meminfo')
+    test_ip = '10.0.92.1'
+    def v(name):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip})
+    handler(
+        'MemTotal:          27528 kB\n'
+        'MemFree:            1748 kB\n'
+        'Buffers:            1800 kB\n'
+        'Cached:             6384 kB\n'
+        'Active:             7100 kB\n',  # extra field that should be ignored
+        test_ip,
+    )
+    assert v('gpon_memory_total_bytes') == 27528 * 1024
+    assert v('gpon_memory_free_bytes')  == 1748 * 1024
+    assert v('gpon_memory_buffers_bytes') == 1800 * 1024
+    assert v('gpon_memory_cached_bytes')  == 6384 * 1024
+
+
+def test_eth0_mac_extracts_address():
+    """/sys/class/net/eth0/address is one line, '24:43:e2:2d:55:10\\n'.
+    The handler lowercases and exposes via the gpon_mac Info metric."""
+    handler = next(h for k, _, h in c.PROBES if k == 'eth0_mac')
+    test_ip = '10.0.93.1'
+    handler('24:43:E2:2D:55:10\n', test_ip)
+    assert REGISTRY.get_sample_value('gpon_mac_info',
+        {'ip': test_ip, 'mac': '24:43:e2:2d:55:10'}) == 1.0
+
+
+def test_proc_uptime_parses_first_float():
+    """/proc/uptime: '<uptime_s> <idle_s>'. We expose only the first."""
+    handler = next(h for k, _, h in c.PROBES if k == 'proc_uptime')
+    test_ip = '10.0.92.2'
+    handler('301991.29 284530.09\n', test_ip)
+    assert REGISTRY.get_sample_value('gpon_system_uptime_seconds',
+                                     {'ip': test_ip}) == 301991.29
+
+
+def test_proc_stat_skips_first_contact_then_increments():
+    """The cpu jiffy counters land on a Counter via manual delta tracking.
+    First contact baselines silently (no phantom rate-spike on restart);
+    second fetch advances by the per-mode delta."""
+    handler = next(h for k, _, h in c.PROBES if k == 'proc_stat')
+    test_ip = '10.0.92.3'
+    def v(mode):
+        return REGISTRY.get_sample_value('gpon_cpu_seconds_total',
+                                         {'ip': test_ip, 'mode': mode})
+    # First snapshot: device has run for a while, big absolute jiffies.
+    handler('cpu  100000 0 50000 9000000 5 0 200 0 0\n'
+            'cpu0 100000 0 50000 9000000 5 0 200 0 0\n'
+            'intr 12345\n', test_ip)
+    # All modes should be at zero (baseline absorbed).
+    for mode in ('user', 'system', 'idle', 'iowait', 'softirq'):
+        assert v(mode) == 0, f'{mode} must not jump on first contact'
+    # Second snapshot: each mode advanced by a known delta in jiffies.
+    handler('cpu  100100 0 50050 9000900 5 0 200 0 0\n', test_ip)
+    # 100 jiffies / HZ=100 = 1 second; 50 jiffies = 0.5s; 900 jiffies = 9s.
+    assert v('user')   == 1.0
+    assert v('system') == 0.5
+    assert v('idle')   == 9.0
+    assert v('iowait') == 0.0  # unchanged
+    assert v('softirq') == 0.0
+
+
+def test_proc_stat_handles_per_cpu_lines_after_aggregate():
+    """The aggregate 'cpu ' line comes first. The handler must take only that
+    one and ignore 'cpu0', 'cpu1' etc. so a future SMP firmware doesn't
+    double-count."""
+    handler = next(h for k, _, h in c.PROBES if k == 'proc_stat')
+    test_ip = '10.0.92.4'
+    def v(mode):
+        return REGISTRY.get_sample_value('gpon_cpu_seconds_total',
+                                         {'ip': test_ip, 'mode': mode})
+    # baseline
+    handler('cpu  0 0 0 0 0 0 0 0 0\ncpu0 0 0 0 0 0 0 0 0 0\n', test_ip)
+    # advance the aggregate by 100 user-jiffies (=1s); per-cpu line shows
+    # garbage that would tag along if we matched 'cpu' loosely.
+    handler('cpu  100 0 0 0 0 0 0 0 0\n'
+            'cpu0 999999 0 0 0 0 0 0 0 0\n', test_ip)
+    assert v('user') == 1.0, 'per-CPU line must not be summed in'
