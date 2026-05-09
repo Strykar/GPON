@@ -103,23 +103,47 @@ def test_alarms_clear_and_raised():
     assert value('gpon_alarm_tx_mismatch') == 0
 
 
-def test_rogue_sd_two_counters():
-    """First contact populates both counters with the device's running totals."""
+def test_first_contact_does_not_spike_counter():
+    """Regression guard for the v1.0.0 first-contact spike: recording the
+    device's running absolute as a Counter increment on first contact
+    produced a phantom rate() spike at every exporter restart. The fix
+    materialises the labeled series at zero, records the baseline silently,
+    and only increments on subsequent fetches' deltas."""
     handler = next(h for k, _, h in c.PROBES if k == 'rogue_sd')
-    # Use a unique IP so the per-test Counter starts fresh (Counters are
-    # monotonic; we can't reset them between tests sharing one label set).
     rogue_ip = '10.0.99.1'
     def rv(name):
         return REGISTRY.get_sample_value(name, {'ip': rogue_ip})
-    handler('SD too long count: 3\n\nSD mismatch count: 7', rogue_ip)
+    # Device's running totals are huge -- realistic for a long-uptime SFP.
+    handler('SD too long count: 100000\nSD mismatch count: 250000', rogue_ip)
+    # First contact: series exists but value is zero. rate() correctly
+    # returns zero until the second fetch produces a real delta.
+    assert rv('gpon_rogue_sd_too_long_total') == 0, \
+        'first contact must NOT inc by the absolute (would phantom-spike rate())'
+    assert rv('gpon_rogue_sd_mismatch_total') == 0
+    # Second fetch: deltas of 3 and 7 land on the Prometheus counter.
+    handler('SD too long count: 100003\nSD mismatch count: 250007', rogue_ip)
     assert rv('gpon_rogue_sd_too_long_total') == 3
     assert rv('gpon_rogue_sd_mismatch_total') == 7
 
 
 def test_ds_phy_block_parses_bip_and_fec():
     """The /stats.asp parity check: BIP-8 errors, FEC corrected/uncorrectable
-    codewords, and superframe LOS all live under 'show counter global ds-phy'."""
+    codewords, and superframe LOS all live under 'show counter global ds-phy'.
+    Uses a unique IP and a baseline-first call so the absolute values land on
+    the Counter as deltas-from-zero (see test_first_contact_does_not_spike_counter
+    for the why)."""
     handler = next(h for k, _, h in c.PROBES if k == 'ds_phy')
+    test_ip = '10.0.91.1'
+    def v(name):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip})
+    handler(
+        'gpon show counter global ds-phy\n'
+        'BIP Error bits  : 0\nBIP Error blocks: 0\n'
+        'FEC Correct bits: 0\nFEC Correct bytes: 0\n'
+        'FEC Correct codewords: 0\nFEC codewords Uncor: 0\n'
+        'Superframe LOS  : 0\nPLEN fail       : 0\nPLEN correct    : 0\n',
+        test_ip,
+    )
     text = (
         'gpon show counter global ds-phy\n'
         '============================================================\n'
@@ -135,17 +159,26 @@ def test_ds_phy_block_parses_bip_and_fec():
         'PLEN correct    : 999\n'
         '============================================================\n'
     )
-    handler(text, IP)
-    assert value('gpon_ds_bip_error_bits_total') == 4
-    assert value('gpon_ds_bip_error_blocks_total') == 1
-    assert value('gpon_ds_fec_correct_bytes_total') == 100
-    assert value('gpon_ds_fec_correct_codewords_total') == 5
-    assert value('gpon_ds_fec_uncorrectable_codewords_total') == 2
-    assert value('gpon_ds_plen_correct_total') == 999
+    handler(text, test_ip)
+    assert v('gpon_ds_bip_error_bits_total') == 4
+    assert v('gpon_ds_bip_error_blocks_total') == 1
+    assert v('gpon_ds_fec_correct_bytes_total') == 100
+    assert v('gpon_ds_fec_correct_codewords_total') == 5
+    assert v('gpon_ds_fec_uncorrectable_codewords_total') == 2
+    assert v('gpon_ds_plen_correct_total') == 999
 
 
 def test_ds_plm_block():
     handler = next(h for k, _, h in c.PROBES if k == 'ds_plm')
+    test_ip = '10.0.91.2'
+    def v(name):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip})
+    handler(
+        'Total RX PLOAMd    : 0\nCRC Err RX PLOAM   : 0\n'
+        'Proc RX PLOAMd     : 0\nOverflow Rx PLOAM  : 0\n'
+        'Unknown Rx PLOAM   : 0\n',
+        test_ip,
+    )
     text = (
         'Total RX PLOAMd    : 78020\n'
         'CRC Err RX PLOAM   : 0\n'
@@ -153,9 +186,9 @@ def test_ds_plm_block():
         'Overflow Rx PLOAM  : 0\n'
         'Unknown Rx PLOAM   : 0\n'
     )
-    handler(text, IP)
-    assert value('gpon_ds_ploam_received_total') == 78020
-    assert value('gpon_ds_ploam_processed_total') == 12484
+    handler(text, test_ip)
+    assert v('gpon_ds_ploam_received_total') == 78020
+    assert v('gpon_ds_ploam_processed_total') == 12484
 
 
 def test_authuptime():
@@ -260,15 +293,17 @@ def test_alarms_preserve_value_on_unparseable_input():
 def test_rogue_sd_partial_input_leaves_other_counter_alone():
     """If a future firmware drops one of the two rogue-SD lines, the missing
     counter must not be touched (Counters are monotonic; can't fake-zero
-    backwards). The matched line updates as normal; the missing one stays."""
+    backwards). The matched line advances as normal; the missing one stays."""
     handler = next(h for k, _, h in c.PROBES if k == 'rogue_sd')
     rogue_ip = '10.0.99.2'
     def rv(name):
         return REGISTRY.get_sample_value(name, {'ip': rogue_ip})
-    handler('SD too long count: 5\n\nSD mismatch count: 7', rogue_ip)
+    # Baseline (silent), then a fetch that lands deltas of 5 and 7.
+    handler('SD too long count: 0\nSD mismatch count: 0', rogue_ip)
+    handler('SD too long count: 5\nSD mismatch count: 7', rogue_ip)
     assert rv('gpon_rogue_sd_too_long_total') == 5
     assert rv('gpon_rogue_sd_mismatch_total') == 7
-    # Subsequent fetch: too_long incremented to 8, mismatch line missing.
+    # Subsequent fetch: too_long advances to 8 (delta of 3), mismatch line missing.
     handler('SD too long count: 8', rogue_ip)
     assert rv('gpon_rogue_sd_too_long_total') == 8   # advanced
     assert rv('gpon_rogue_sd_mismatch_total') == 7   # untouched
@@ -279,7 +314,9 @@ def test_rogue_sd_preserves_counters_on_unparseable_input():
     rogue_ip = '10.0.99.3'
     def rv(name):
         return REGISTRY.get_sample_value(name, {'ip': rogue_ip})
-    handler('SD too long count: 9\n\nSD mismatch count: 11', rogue_ip)
+    # Baseline + one real fetch -> counter advances by 9.
+    handler('SD too long count: 0\nSD mismatch count: 0', rogue_ip)
+    handler('SD too long count: 9\nSD mismatch count: 11', rogue_ip)
     assert rv('gpon_rogue_sd_too_long_total') == 9
     handler('', rogue_ip)
     assert rv('gpon_rogue_sd_too_long_total') == 9

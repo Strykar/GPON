@@ -1,14 +1,16 @@
 """Shared pytest fixtures.
 
-The exporter module parses argparse at import time and exits if required
-args are missing. We satisfy that by faking sys.argv before any test
-imports the module. Tests don't use the network; the values just need to
-be syntactically valid.
+The exporter no longer parses argv at import time, but the rest of the
+module still expects args + PROBES to be populated before handlers are
+called. We do that once here for the whole suite. Tests don't use the
+network; the values just need to be syntactically valid.
 """
-import sys
+import gpon_exporter
 
-sys.argv = [
-    'gpon_exporter.py',
-    '--device', 'admin:unused@test:22',
-    '--enable-omci',
-]
+
+def pytest_configure(config):  # pylint: disable=unused-argument
+    if gpon_exporter.args is None:
+        gpon_exporter.init_args([
+            '--device', 'admin:unused@test:22',
+            '--enable-omci',
+        ])

@@ -1,8 +1,7 @@
 """Test that --enable-omci=off actually excludes the omcicli probes from
-PROBES. The conftest.py used by the rest of the suite sets --enable-omci
-on at module-import time, so we can't toggle it within the same Python
-process. Spawn a fresh interpreter instead, which is clean and slow but
-fine for this single coverage gap.
+PROBES. init_args() mutates module-level state, so toggling it in-process
+would pollute the rest of the suite. Spawn a fresh interpreter instead --
+slow but isolated.
 """
 import os
 import subprocess
@@ -13,14 +12,14 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _check_probes(extra_args):
-    """Import gpon_exporter in a subprocess with the given argv, return the
-    list of PROBES keys it constructs."""
+    """Import gpon_exporter in a subprocess, run init_args with the given
+    extras, return the list of PROBES keys."""
+    argv = ['--device', 'u:p@t:22'] + list(extra_args)
     code = (
         "import sys; "
-        "sys.argv = ['gpon_exporter.py', '--device', 'u:p@t:22'] + "
-        + repr(list(extra_args)) + "; "
         "sys.path.insert(0, " + repr(REPO_ROOT) + "); "
         "import gpon_exporter as c; "
+        "c.init_args(" + repr(argv) + "); "
         "print('|'.join(k for k, _, _ in c.PROBES))"
     )
     out = subprocess.check_output(

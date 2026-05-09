@@ -1,5 +1,5 @@
 """Test the --device user:password@host[:port] parser. Run in subprocesses
-because the parsing happens at module import time."""
+to keep init_args() state isolated between cases."""
 import os
 import subprocess
 import sys
@@ -9,13 +9,13 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _parse(device_args, env=None):
-    """Spawn a subprocess that imports gpon_exporter with the given --device
+    """Spawn a subprocess that calls init_args() with the given --device
     args, then prints the resulting (host, port, user, password) tuple list.
     Returns the parsed list, or raises CalledProcessError on argparse error."""
     code = (
         f"import sys; sys.path.insert(0, {REPO_ROOT!r}); "
-        f"sys.argv = ['gpon_exporter.py'] + {device_args!r}; "
         "import gpon_exporter as c; "
+        f"c.init_args({device_args!r}); "
         "print(repr(list(zip(c.args.hostname, c.args.port, c.args.user, c.args.password))))"
     )
     e = dict(os.environ)
@@ -59,8 +59,8 @@ def test_missing_password_no_env_errors():
     e.pop('ONU_SSH_PASSWORD', None)
     code = (
         f"import sys; sys.path.insert(0, {REPO_ROOT!r}); "
-        "sys.argv = ['gpon_exporter.py', '--device', 'admin@host']; "
-        "import gpon_exporter"
+        "import gpon_exporter as c; "
+        "c.init_args(['--device', 'admin@host'])"
     )
     proc = subprocess.run([sys.executable, '-c', code], cwd=REPO_ROOT,
                           env=e, capture_output=True, timeout=10, check=False)

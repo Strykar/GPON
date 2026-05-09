@@ -1,10 +1,9 @@
 <!--
-Thanks for contributing. Before filling this in, please skim QUIRKS.md
-(in the repo root). It documents the firmware and collector behaviours
-that have already cost time to figure out -- especially the omci_app
-wedge, the Gauge-vs-Counter design choice, and the dashboard's
-`clamp_min(delta(metric[Nm]), 0) / N` query convention. If your change
-runs into something that QUIRKS.md should explain, add to it.
+Thanks for contributing. Before filling this in, please skim
+docs/QUIRKS.md. It documents the firmware and collector behaviours that
+have already cost time to figure out -- especially the omci_app wedge,
+the _AbsoluteCounter design, and the dashboard's query conventions. If
+your change runs into something that QUIRKS.md should explain, add to it.
 -->
 
 ## Summary
@@ -13,9 +12,9 @@ runs into something that QUIRKS.md should explain, add to it.
 
 ## Checklist
 
-- [ ] I read [QUIRKS.md](../QUIRKS.md) and my change does not contradict
-      a documented quirk (or my change updates QUIRKS.md to reflect new
-      behaviour).
+- [ ] I read [docs/QUIRKS.md](../docs/QUIRKS.md) and my change does not
+      contradict a documented quirk (or my change updates QUIRKS.md to
+      reflect new behaviour).
 - [ ] `pylint gpon_exporter.py` still scores 10/10.
 - [ ] `pytest tests/` is green. If I fixed a bug, I added a regression
       test that fails without my fix.

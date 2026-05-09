@@ -19,19 +19,19 @@ and not duplicated here.
 | `cat /etc/version` | `gpon_firmware_info{version}` | Firmware |
 | `diag pon get transceiver tx-power` | `gpon_tx_power_dbm` | Signal Tx power, Laser Tx (1310 nm) |
 | `diag pon get transceiver rx-power` | `gpon_rx_power_dbm` | Signal Rx power, Laser Rx (1490 nm) |
-| `diag pon get transceiver temperature` | `gpon_temperature_celsius` | SFP SoC Temperature, SoC temperature gauge |
+| `diag pon get transceiver temperature` | `gpon_temperature_celsius` | SFP (commercial) SoC temperature, SoC temperature (gauge) |
 | `diag pon get transceiver voltage` | `gpon_voltage_volts` | SFP voltage |
 | `diag pon get transceiver bias-current` | `gpon_bias_current_amperes` | Bias current |
-| `diag gpon get onu-state` | `gpon_onu_state` | ONU State |
+| `diag gpon get onu-state` | `gpon_onu_state` | ONU state |
 | `diag gpon get alarm-status` | `gpon_alarm_los`, `_lof`, `_lom`, `_sf`, `_sd`, `_tx_too_long`, `_tx_mismatch` | Alarms |
 | `diag gpon show counter global active` | `gpon_activation_sn_requests_total`, `gpon_activation_ranging_requests_total` | Activation events (last 1h) |
-| `diag gpon show counter global ds-phy` | `gpon_ds_bip_error_bits_total`, `_blocks_total`, `gpon_ds_fec_correct_codewords_total`, `gpon_ds_fec_uncorrectable_codewords_total` | Downstream BIP errors, FEC corrected codewords, FEC uncorrectable codewords |
-| `diag gpon show counter global ds-plm` | `gpon_ds_ploam_received_total`, `_crc_errors_total` | PLOAM messages |
-| `diag gpon show counter global ds-bw` | `gpon_ds_bwmap_received_total`, `_crc_errors_total` | Downstream BWMAP |
+| `diag gpon show counter global ds-phy` | `gpon_ds_bip_error_bits_total`, `_blocks_total`, `gpon_ds_fec_correct_codewords_total`, `gpon_ds_fec_uncorrectable_codewords_total` | Downstream BIP errors/sec, FEC corrected codewords/sec, FEC uncorrectable codewords/sec |
+| `diag gpon show counter global ds-plm` | `gpon_ds_ploam_received_total`, `_crc_errors_total` | PLOAM messages/sec (DS series) |
+| `diag gpon show counter global ds-bw` | `gpon_ds_bwmap_received_total`, `_crc_errors_total` | Downstream BWMAP/sec |
 | `diag gpon show counter global ds-omci` | `gpon_ds_omci_received_total`, `_processed_total` | OMCI message rate |
-| `diag gpon show counter global ds-eth` | `gpon_ds_ethernet_unicast_total`, `_multicast_total`, `_fcs_errors_total` | Downstream Ethernet frames |
+| `diag gpon show counter global ds-eth` | `gpon_ds_ethernet_unicast_total`, `_multicast_total`, `_fcs_errors_total` | Downstream Ethernet frames/sec |
 | `diag gpon show counter global ds-gem` | `gpon_ds_gem_non_idle_total` | Downstream GEM data frame rate |
-| `diag gpon show counter global us-plm` | `gpon_us_ploam_transmitted_total` | PLOAM messages (US line) |
+| `diag gpon show counter global us-plm` | `gpon_us_ploam_transmitted_total` | PLOAM messages/sec (US transmitted series) |
 
 ## Metrics from `omcicli`
 

@@ -128,7 +128,7 @@ useful. If you need actual key-change enforcement, swap to
   `diag`, strip that suffix.
 - **Most diag subcommands print parse errors as plain stderr-style text on
   stdout.** Example: `diag gpon get` (no subcommand) prints
-  `   ^Incomplete command`. Don't grep for "error".
+  `^Incomplete command` (with leading whitespace). Don't grep for "error".
 
 ### What `omcicli` does and doesn't do
 
@@ -159,10 +159,13 @@ The single most consequential quirk we found.
   `omcicli`. Technically `diag → omcicli` with a multi-minute gap.
   Continuous-runtime testing has not reproduced the wedge in this
   configuration, so the trigger appears to require *same-session,
-  immediate* sequencing. The collector relies on this observation; if a
-  future firmware reproduces the wedge cross-session, the fix is to flip
-  the probe order so each fetch *ends* with `omcicli` instead of
-  starting with it.
+  immediate* sequencing. The collector relies on this observation. If a
+  future firmware turns out to wedge cross-session as well, the existing
+  ordering is already wrong (the *next* fetch starts with `omcicli`
+  immediately after `diag` in the previous one). The mitigation in that
+  case isn't a probe-order flip -- it's stopping `omcicli` from running
+  back-to-back-after-`diag` at all, e.g. by separating omci and diag
+  fetches into different cycles.
 - The collector mitigates this by:
   - Defaulting `--enable-omci` to **off**. With it off, only `diag`
     probes run and the wedge is impossible.
@@ -222,7 +225,7 @@ The single most consequential quirk we found.
 
 - Literal output of `diag gpon get alarm-status`:
 
-  ```
+  ```text
   Alarm LOS, status: clear
   Alarm LOF, status: clear
   Alarm LOM, status: clear
@@ -248,23 +251,26 @@ The single most consequential quirk we found.
 
 ## Collector design choices and why
 
-### Cumulative counters exposed as Gauges, not Counters
+### Cumulative counters as real Counters via `_AbsoluteCounter`
 
 - `prometheus_client`'s `Counter` class only supports `.inc(delta)`, not
-  `.set(absolute_value)`. Our collector reads the device's absolute
-  counter values once per fetch and would have to track per-host previous
-  values to compute deltas. Adding state and reset-detection logic that
-  we deliberately don't have.
-- The trade-off: Grafana flags `rate()` on these Gauges with a "metric
-  might not be a counter" info hint. Charts still produce the right
-  numbers because the values are monotonically increasing.
-- The dashboard uses `clamp_min(delta(metric[15m]), 0) / 900` instead of
-  `rate(...)` for these gauges. Mathematically equivalent for monotonic
-  data; the `clamp_min` swallows counter resets (device reboot); no type
-  warning.
-- Real Counters in our collector (`gpon_exporter_fetch_failures_total`)
-  use `Counter` and the dashboard uses `rate()` on them, which is
-  correct.
+  `.set(absolute_value)`. The device, however, only exposes absolute
+  running totals. To keep the metric type correct (Prometheus Counter,
+  `_total` suffix, `rate()`-friendly) we wrap `Counter` in an
+  `_AbsoluteCounter` adapter that lets handlers call
+  `.labels(ip=).set(absolute)` the same way they would on a Gauge. The
+  adapter remembers the previous absolute per label tuple, computes the
+  delta, and feeds `Counter.inc(delta)`.
+- Counter resets (SFP reboot, observed as a downward step in the absolute
+  value) are detected and skipped: we rebase to the new baseline rather
+  than back-decrementing the Prometheus counter. `rate()` then sees a
+  clean monotonic series and the next fetch's increment is computed
+  against the post-reboot value.
+- This replaced an earlier design that exposed cumulative values as
+  `Gauge` and used `clamp_min(delta(metric[15m]), 0) / 900` in the
+  dashboard. The Counter design is type-correct, removes the
+  "metric might not be a counter" info hint in Grafana, and lets every
+  panel use plain `rate(metric_total[15m])`.
 
 ### One SSH connection per fetch, channel per probe
 
@@ -292,10 +298,13 @@ The single most consequential quirk we found.
 
 ## Dashboard design choices and why
 
-### `clamp_min(delta(...), 0) / 900` over `rate(...)`
+### `rate(metric_total[15m])` for cumulative counters
 
-- See "Cumulative counters exposed as Gauges" above. Same reasoning,
-  applied to every cumulative-counter panel.
+- Counters are exposed as proper Prometheus `Counter` type via the
+  `_AbsoluteCounter` wrapper (see "Cumulative counters as real Counters"
+  above), so plain `rate()` is correct and reset-aware. The dashboard
+  used `clamp_min(delta(metric[15m]), 0) / 900` in the pre-v1.0.0 design
+  when the same metrics were Gauges; that workaround is gone.
 
 ### 15-minute rate windows
 
@@ -303,6 +312,17 @@ The single most consequential quirk we found.
   contains 2-3 fetches' worth of deltas, smoothing out the synchronised
   step pattern that a `[5m]` window produces. If you change `--interval`,
   scale the window accordingly.
+
+### `sum(increase(...[1h]))` on activation events
+
+- The activation-events stat panel uses `sum(increase(...[1h]))` rather
+  than bare `increase(...[1h])`. The wrapper folds any historical series
+  with a different label set into a single cell, which matters during
+  exporter-restart migrations: a renamed/added label leaves the previous
+  series queryable until retention ages it out, and a `[1h]` lookback
+  scoops both the stale and current series and renders them side-by-side.
+  Safe given the single-device-per-exporter `$instance` filter; multi-
+  device-per-exporter setups want `sum by(ip)` instead.
 
 ### Tx/Rx power as threshold-banded timeseries, not heatmap
 

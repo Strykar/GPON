@@ -32,7 +32,7 @@
       },
       "id": 140,
       "panels": [],
-      "title": "ONU Status",
+      "title": "ONU status",
       "type": "row"
     },
     {
@@ -64,11 +64,11 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "# Common attenuation sources:\n\n- **Upstream Length Loss:** `~0.5 dB` per Km on `1310 nm`.\n- **Downstream Length Loss:** `~0.3 dB` per Km on `1490 nm`.\n- **Splices Loss:** `~0.1 dB` per splice.\n- **Connectors Loss:** `~0.6 dB` per connector.\n- **Splitter Loss:** `log10(split:ratio) x 10 = Attenuation in dB` per split.\n\nAlso see:\n- [UISP Fiber: Designing a GPON Network](https://help.ui.com/hc/en-us/articles/115011654907-UISP-Fiber-Designing-a-GPON-Network)\n\n- [Understanding GPON ONU registration states: Operation States 01 to 07](https://www.telecomate.com/mtk-solution-gpon-ont-onu-registration-process-and-omci-analysis)\n\n- [Activation Process of ONU in EPON / GPON / XG-PON / NG-PON2 Networks](https://github.com/Strykar/GPON/blob/main/docs/applsci-08-01934.pdf)\n\n",
+            "content": "| | |\n|---|---|\n| **Upstream length loss** | ~0.5 dB / km on 1310 nm |\n| **Downstream length loss** | ~0.3 dB / km on 1490 nm |\n| **Splice loss** | ~0.1 dB / splice |\n| **Connector loss** | ~0.6 dB / connector |\n| **Splitter loss** | log10(split-ratio) \u00d7 10 dB |\n\nReferences: [UISP: designing a GPON network](https://help.ui.com/hc/en-us/articles/115011654907-UISP-Fiber-Designing-a-GPON-Network) \u00b7 [ONU registration states](https://www.telecomate.com/mtk-solution-gpon-ont-onu-registration-process-and-omci-analysis) \u00b7 [ONU activation paper](https://github.com/Strykar/GPON/blob/main/docs/applsci-08-01934.pdf)\n",
             "mode": "markdown"
           },
           "pluginVersion": "10.3.3",
-          "title": "HSGQ / ODI XPON SoC and GPON signal metrics",
+          "title": "Common attenuation sources",
           "transparent": true,
           "type": "text"
         },
@@ -91,7 +91,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "# Tech specs\n\n| | |\n|---|---|\n| **User interface** | 1\u00d7 port |\n| **PON connector** | SC |\n| **Size** | 8.2 \u00d7 6.8 \u00d7 75 mm |\n| **Weight** | < 19 g |\n| **Power supply** | 3.3 V |\n| **Power consumption** | < 2.5 W |\n| **PON modes** | GPON / EPON adaptive |\n| **Op. temp (I-temp)** | \u221240 \u00b0C to 85 \u00b0C |\n| **Op. temp (C-temp)** | 0 \u00b0C to 70 \u00b0C |\n| **Storage humidity** | 5\u201395% non-condensing |\n| **Mode** | SFU (some HGU support: DHCP, PPPoE, NAT) |\n| **Configurable** | MAC, SN, Vendor ID, PVID |\n| **DDMI** | Supported |\n| **Management** | HTTP, Telnet, SSH, TR-069 |\n| **SFP MSA** | Supported |\n| **VLAN** | Transport, switch |\n",
+            "content": "| | |\n|---|---|\n| **User interface** | 1\u00d7 port |\n| **PON connector** | SC |\n| **Size** | 8.2 \u00d7 6.8 \u00d7 75 mm |\n| **Weight** | < 19 g |\n| **Power supply** | 3.3 V |\n| **Power consumption** | < 2.5 W |\n| **PON modes** | GPON / EPON adaptive |\n| **Op. temp (I-temp)** | \u221240 \u00b0C to 85 \u00b0C |\n| **Op. temp (C-temp)** | 0 \u00b0C to 70 \u00b0C |\n| **Storage humidity** | 5\u201395% non-condensing |\n| **Mode** | SFU (some HGU support: DHCP, PPPoE, NAT) |\n| **Configurable** | MAC, SN, vendor ID, PVID |\n| **DDMI** | supported |\n| **Management** | HTTP, Telnet, SSH, TR-069 |\n| **SFP MSA** | supported |\n| **VLAN** | transport, switch |\n",
             "mode": "markdown"
           },
           "pluginVersion": "10.3.3",
@@ -118,7 +118,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "# Features\n\n- 1490 nm wavelength downstream, 1310 nm wavelength upstream\n- **GPON**: 2.5 Gb/s downstream, 1.25 Gb/s upstream\n- **EPON**: 1.25 Gb/s symmetric\n- SFP MSA (SFF-8074i)\n- Digital Diagnostic Monitor (DDM) compatible with SFF-8472\n- ITU-T G.984.2 + Amendment 1\n- ITU-T G.988 (OMCI)\n- Class I laser safety (IEC-60825)\n- RoHS compliant\n",
+            "content": "| | |\n|---|---|\n| **Downstream wavelength** | 1490 nm |\n| **Upstream wavelength** | 1310 nm |\n| **GPON rates** | 2.5 Gb/s down, 1.25 Gb/s up |\n| **EPON rates** | 1.25 Gb/s symmetric |\n| **SFP standard** | SFP MSA (SFF-8074i) |\n| **DDM** | SFF-8472 |\n| **Standards** | ITU-T G.984.2 (+ Amd. 1), ITU-T G.988 (OMCI) |\n| **Laser safety** | class I (IEC-60825) |\n| **Compliance** | RoHS |\n",
             "mode": "markdown"
           },
           "pluginVersion": "10.3.3",
@@ -140,7 +140,7 @@
       },
       "id": 12,
       "panels": [],
-      "title": "CPU / RAM / Voltage",
+      "title": "Laser / CPU / RAM / Voltage / Temperature",
       "type": "row"
     },
     {
@@ -224,7 +224,7 @@
           "editorMode": "code",
           "expr": "gpon_voltage_volts {instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -502,12 +502,12 @@
           "editorMode": "code",
           "expr": "gpon_temperature_celsius",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "SFP (Commercial) SoC Temperature",
+      "title": "SFP (commercial) SoC temperature",
       "type": "timeseries"
     },
     {
@@ -614,7 +614,7 @@
           "editorMode": "code",
           "expr": "gpon_tx_power_dbm",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -719,7 +719,7 @@
           "editorMode": "code",
           "expr": "gpon_bias_current_amperes",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -831,7 +831,7 @@
           "editorMode": "code",
           "expr": "gpon_rx_power_dbm",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -850,7 +850,7 @@
       },
       "id": 114,
       "panels": [],
-      "title": "GPON Counters (diag-only)",
+      "title": "GPON counters (diag-only)",
       "type": "row"
     },
     {
@@ -958,7 +958,7 @@
           "refId": "A"
         }
       ],
-      "title": "ONU State",
+      "title": "ONU state",
       "type": "stat"
     },
     {
@@ -1039,7 +1039,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_los",
           "instant": false,
-          "legendFormat": "LOS",
+          "legendFormat": "Loss of Signal",
           "range": true,
           "refId": "A"
         },
@@ -1051,7 +1051,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_lof",
           "instant": false,
-          "legendFormat": "LOF",
+          "legendFormat": "Loss of Frame",
           "range": true,
           "refId": "B"
         },
@@ -1063,7 +1063,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_lom",
           "instant": false,
-          "legendFormat": "LOM",
+          "legendFormat": "Loss of MAC",
           "range": true,
           "refId": "C"
         },
@@ -1075,7 +1075,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_sf",
           "instant": false,
-          "legendFormat": "SF",
+          "legendFormat": "Signal Fail",
           "range": true,
           "refId": "D"
         },
@@ -1087,7 +1087,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_sd",
           "instant": false,
-          "legendFormat": "SD",
+          "legendFormat": "Signal Degraded",
           "range": true,
           "refId": "E"
         },
@@ -1099,7 +1099,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_tx_too_long",
           "instant": false,
-          "legendFormat": "TX TOO LONG",
+          "legendFormat": "TX Too Long",
           "range": true,
           "refId": "F"
         },
@@ -1111,7 +1111,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_tx_mismatch",
           "instant": false,
-          "legendFormat": "TX MISMATCH",
+          "legendFormat": "TX Mismatch",
           "range": true,
           "refId": "G"
         }
@@ -1138,7 +1138,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1253,7 +1253,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1368,7 +1368,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1471,7 +1471,7 @@
           "editorMode": "code",
           "expr": "rate(gpon_ds_bip_error_bits_total[15m])",
           "instant": false,
-          "legendFormat": "bits",
+          "legendFormat": "error bits",
           "range": true,
           "refId": "A"
         },
@@ -1483,7 +1483,7 @@
           "editorMode": "code",
           "expr": "rate(gpon_ds_bip_error_blocks_total[15m])",
           "instant": false,
-          "legendFormat": "blocks",
+          "legendFormat": "error blocks",
           "range": true,
           "refId": "B"
         }
@@ -1510,7 +1510,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1683,7 +1683,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1829,7 +1829,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2479,7 +2479,7 @@
           "type": "stat"
         }
       ],
-      "title": "Collector Health",
+      "title": "Collector health",
       "type": "row"
     },
     {
@@ -2501,7 +2501,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2563,7 +2563,7 @@
         "x": 0,
         "y": 67
       },
-      "id": 134,
+      "id": 141,
       "options": {
         "legend": {
           "calcs": [
@@ -2589,7 +2589,7 @@
           "editorMode": "code",
           "expr": "rate(gpon_ds_gem_non_idle_total[15m])",
           "instant": false,
-          "legendFormat": "non-idle frames/sec",
+          "legendFormat": "non-idle frames",
           "range": true,
           "refId": "A"
         }
@@ -2616,7 +2616,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2693,7 +2693,7 @@
         "x": 12,
         "y": 67
       },
-      "id": 135,
+      "id": 142,
       "options": {
         "legend": {
           "calcs": [
@@ -2799,7 +2799,7 @@
             "uid": "G3vCyHW4k"
           },
           "editorMode": "code",
-          "expr": "increase(gpon_activation_sn_requests_total[1h]) + increase(gpon_activation_ranging_requests_total[1h])",
+          "expr": "sum(increase(gpon_activation_sn_requests_total{instance=~\"$instance\"}[1h])) + sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\"}[1h]))",
           "instant": false,
           "legendFormat": "events",
           "range": true,
@@ -2889,7 +2889,7 @@
           "editorMode": "code",
           "expr": "gpon_tx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -2977,7 +2977,7 @@
           "editorMode": "code",
           "expr": "gpon_rx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -3057,7 +3057,7 @@
           "editorMode": "code",
           "expr": "gpon_temperature_celsius{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{instance}}",
           "range": true,
           "refId": "A"
         }
@@ -3127,7 +3127,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},

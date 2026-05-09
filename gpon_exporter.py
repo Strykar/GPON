@@ -119,7 +119,11 @@ parser.add_argument('--known-hosts',
                           'first run with 0600 perms. Pass an empty string to disable '
                           'persistence (still logs fingerprints on every connect).'))
 
-args = parser.parse_args()
+# Populated by init_args(); kept module-level so handlers and self-metrics
+# can reference args.* without threading it through every call site. Tests
+# import this module without triggering parse_args by calling init_args()
+# explicitly with a synthetic argv.
+args = None  # pylint: disable=invalid-name
 
 
 def _parse_device(s):
@@ -137,12 +141,19 @@ def _parse_device(s):
     return parsed.hostname, parsed.port or 22, unquote(parsed.username), pw
 
 
-# Expand --device strings into the parallel arrays the rest of the code uses.
-_devs = [_parse_device(s) for s in args.device]
-args.hostname = [d[0] for d in _devs]
-args.port     = [d[1] for d in _devs]
-args.user     = [d[2] for d in _devs]
-args.password = [d[3] for d in _devs]
+def init_args(argv=None):
+    """Parse argv and populate module-level args + PROBES. Idempotent.
+    Called from main() at startup; tests call it directly with a synthetic
+    argv so they don't have to fake sys.argv."""
+    global args, PROBES  # pylint: disable=global-statement
+    args = parser.parse_args(argv)
+    devs = [_parse_device(s) for s in args.device]
+    args.hostname = [d[0] for d in devs]
+    args.port     = [d[1] for d in devs]
+    args.user     = [d[2] for d in devs]
+    args.password = [d[3] for d in devs]
+    PROBES = (OMCI_PROBES if args.enable_omci else []) + DIAG_PROBES
+    return args
 
 
 # ----- Transceiver gauges (existing) ---------------------------------------
@@ -217,9 +228,13 @@ class _AbsoluteCounter:  # pylint: disable=too-few-public-methods
     def _update(self, label_tuple, absolute):
         prev = self._last.get(label_tuple)
         if prev is None:
-            # First contact: increment by the full absolute so the exposed
-            # value matches the device's running counter from t=0.
-            self._counter.labels(**dict(label_tuple)).inc(absolute)
+            # First contact: record the device's baseline silently and
+            # materialise the labeled series at zero so /metrics shows it
+            # right away. Do NOT inc by the full absolute -- that produces
+            # a phantom rate() spike at every exporter restart, which is
+            # exactly the bug a real Counter design is supposed to avoid.
+            # rate() correctly returns 0 until the second fetch lands.
+            self._counter.labels(**dict(label_tuple))
         elif absolute < prev:
             # Counter reset (device reboot). Don't try to back-decrement
             # the Prometheus counter; just rebase to the new baseline.
@@ -494,7 +509,9 @@ DIAG_PROBES = [
     for section in COUNTER_MAP
 ]
 
-PROBES = (OMCI_PROBES if args.enable_omci else []) + DIAG_PROBES
+# Populated by init_args(); see top of file.
+PROBES = []
+
 
 def fetch_and_update_metrics_via_ssh(hostname, port, username, password):
     client = paramiko.SSHClient()
@@ -522,7 +539,7 @@ def explain_exception(e, host):  # pylint: disable=too-many-return-statements
     name = type(e).__name__
     msg = str(e) or '(no message)'
     if isinstance(e, paramiko.AuthenticationException):
-        return f'auth failed (wrong --user/--password, or {host} locked the account out)'
+        return f'auth failed (wrong credentials in --device, or {host} locked the account out)'
     if isinstance(e, paramiko.BadHostKeyException):
         return f'host key changed for {host} (clear ~/.ssh/known_hosts if expected)'
     # The hint below is matched against paramiko's exception message text, which
@@ -549,16 +566,26 @@ def fetch_all_once():
     for i, host in enumerate(args.hostname):
         start = time.monotonic()
         try:
-            fetch_and_update_metrics_via_ssh(
-                host, args.port[i], args.user[i], args.password[i],
-            )
+            try:
+                fetch_and_update_metrics_via_ssh(
+                    host, args.port[i], args.user[i], args.password[i],
+                )
+            except Exception as first_exc:  # pylint: disable=broad-exception-caught
+                # One transient SSH hiccup shouldn't flatline the host for the
+                # whole interval. Sleep briefly and retry once before declaring
+                # the device down. A second failure is a real failure.
+                log.info('fetch retry for %s after: %s',
+                         host, explain_exception(first_exc, host))
+                time.sleep(5)
+                fetch_and_update_metrics_via_ssh(
+                    host, args.port[i], args.user[i], args.password[i],
+                )
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # Transient SSH/parse failures shouldn't take the daemon down; the next
-            # tick will retry and Prometheus will plot a gap rather than a flatline.
             collector_up.labels(ip=host).set(0)
             collector_fetch_failures.labels(ip=host).inc()
             collector_fetch_seconds.labels(ip=host).set(time.monotonic() - start)
-            log.warning('fetch failed for %s: %s', host, explain_exception(e, host))
+            log.warning('fetch failed for %s after retry: %s',
+                        host, explain_exception(e, host))
             failures += 1
         else:
             now = time.time()
@@ -620,6 +647,8 @@ def diagnose():
 
 
 def main():
+    if args is None:
+        init_args()
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format='%(asctime)s %(levelname)s %(name)s: %(message)s',

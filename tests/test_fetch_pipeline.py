@@ -89,8 +89,17 @@ def test_fetch_propagates_authentication_error(monkeypatch):
 
 
 def test_fetch_updates_gauges_from_canned_output(monkeypatch):
-    """End-to-end: feed real diag output for ds-phy through the pipeline and
-    verify the BIP/FEC gauges land at the right values."""
+    """End-to-end: feed real diag output for ds-phy through the pipeline twice
+    (baseline-then-real, so the Counter advances by the absolute as a delta
+    instead of being silently absorbed on first contact) and verify the
+    BIP/FEC counters land at the right values plus the Tx gauge."""
+    baseline = {
+        'diag pon get transceiver tx-power': 'Tx Power: 1.500000  dBm',
+        'diag gpon show counter global ds-phy': (
+            'BIP Error bits  : 0\nBIP Error blocks: 0\n'
+            'FEC Correct codewords: 0\nFEC codewords Uncor: 0\n'
+        ),
+    }
     canned = {
         'diag pon get transceiver tx-power': 'Tx Power: 1.500000  dBm',
         'diag gpon show counter global ds-phy': (
@@ -100,8 +109,11 @@ def test_fetch_updates_gauges_from_canned_output(monkeypatch):
             'FEC codewords Uncor: 3\n'
         ),
     }
-    install_fake(monkeypatch, responses=canned)
     ip = '10.0.0.99'
+
+    install_fake(monkeypatch, responses=baseline)
+    c.fetch_and_update_metrics_via_ssh(ip, 22, 'admin', 'pw')
+    install_fake(monkeypatch, responses=canned)
     c.fetch_and_update_metrics_via_ssh(ip, 22, 'admin', 'pw')
 
     def value(name):
