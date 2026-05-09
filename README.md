@@ -7,20 +7,7 @@ HSGQ / ODI (Realtek RTL960x) GPON SFP.
 
 ![Grafana dashboard screenshot](docs/screenshot.png)
 
-## Breaking changes in v1.0.0
-
-If you ran the pre-v1.0.0 collector, the renames below will break any
-external alerting rules, recording rules, or dashboard forks. The shipped
-`dashboard.json` is migrated; only your own copies need attention.
-
-| Old | New |
-| --- | --- |
-| `gpon_collector_*` self-metrics | `gpon_exporter_*` |
-| `gpon_bias_current_mA` | `gpon_bias_current_amperes` (value scaled, not just renamed) |
-| Cumulative counters (`gpon_ds_*`, `gpon_us_*`, `gpon_activation_*`, `gpon_rogue_sd_*`) | Same names with `_total` suffix; type changed from Gauge to Counter. Use `rate(metric_total[15m])`. |
-| `--hostname H --port N --user U --password P` (positional, repeatable) | `--device user:password@host[:port]` (URL-form, repeatable) |
-| `GPON_PASSWORD` env var | `ONU_SSH_PASSWORD` |
-| Default bind address `0.0.0.0` | `127.0.0.1` (use `--bind-address 0.0.0.0` to opt back in) |
+> Upgrading from a pre-v1.0.0 install? See [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ## Scope
 
@@ -314,15 +301,24 @@ docstring lints disabled.
 pull request, then performs a multi-arch (amd64 + arm64) Docker build smoke
 test. No image is pushed; that's deliberate.
 
+## Contributing
+
+Bug reports, parser fixes for new firmware, dashboard improvements all
+welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for what info to include
+in an issue, the test/lint expectations, and what kinds of changes I'll
+likely push back on. Project conduct is in
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) -- short version: be civil, keep
+technical discussion technical.
+
 ## Firmware downloads
 
 Firmware tarballs and the spec/manual PDFs are on the
 [Releases](https://github.com/Strykar/GPON/releases) page:
 
-| Release | Variant | Date |
-| --- | --- | --- |
-| `firmware/sfu-v1.0-220923` | M110 SFU V1.0 | 2022-09-23 (verified) |
-| `firmware/sfu-240408` | M110 SFU | 2024-04-08 |
-| `firmware/hgu-231021` | M114 HGU | 2023-10-21 |
-| `firmware/hgu-v1.1.3-250620` | HGU V1.1.3 | 2025-06-20 |
-| `docs` | Spec sheets and manual | n/a |
+| File | Variant | Date | Status |
+| --- | --- | --- | --- |
+| `M110_sfp_ODI_220923_SFU.tar` | M110 SFU V1.0-220923 | 2022-09-23 | Verified end-to-end |
+| `M110_sfp_HSGQ_SFU_240408.tar` | M110 SFU V1.1.8-240408 | 2024-04-08 | Untested |
+| `M114_sfp_ODI_231021_HGU.tar` | M114 HGU V1.7.1-231021 | 2023-10-21 | Untested |
+| `V1.1.3_sfp_HSGQ_HGU_250620.tar` | HGU V1.1.4-250620 | 2025-06-20 | Untested |
+| `*.pdf` | Spec sheets, user manual, ONU activation paper | n/a | -- |
