@@ -20,6 +20,18 @@ firmware revision lands or someone files a confused issue.
   varies per device).
 - `mib show` exposes the running config including `SUSER_PASSWORD=...`. Do
   not pipe that anywhere public.
+- **`/var/config/lastgood.xml` and `lastgood_hs.xml` store the same secrets
+  in plaintext** -- `SUSER_PASSWORD`, `E8BDUSER_PASSWORD`, `LOID_PASSWD`,
+  and `GPON_PLOAM_PASSWD` all sit there as `<Value Name="..." Value="..."/>`
+  entries, alongside genuinely useful config (`WAN_MODE`, `OMCC_VER`,
+  VLAN settings). The file is the persistent backing store for `mib show`.
+  Do not write a probe that reads this file as a generic key/value source;
+  the failure mode of a careless `<Value>` regex is to publish those
+  passwords as a Prometheus label, which then ends up in your scrape
+  history and any Grafana snapshot. If a future probe genuinely needs one
+  field from here, parse for *that single field by name* and discard
+  everything else, with a unit test asserting no labelled metric carries
+  one of the known-secret field names.
 
 ### Process layout
 
