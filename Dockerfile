@@ -1,5 +1,13 @@
 FROM python:3.13-slim
 
+# OCI labels. image.source is the one that matters for ghcr -- it's
+# what links the published package to this repo (and inherits the
+# repo's visibility/permissions in the GitHub UI). The rest is
+# nice-to-have metadata visible in `docker inspect`.
+LABEL org.opencontainers.image.source="https://github.com/Strykar/GPON"
+LABEL org.opencontainers.image.description="Prometheus exporter for the HSGQ / ODI (Realtek RTL960x) GPON SFP"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 COPY requirements.txt .
