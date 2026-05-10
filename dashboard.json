@@ -980,7 +980,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 6,
         "x": 0,
         "y": 2
@@ -1024,7 +1024,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "1 = raised, 0 = clear. Severity, worst first: LOS = Loss of Signal (no light from the OLT, the carrier-side equipment); LOF = Loss of Frame sync; LOM = Loss of PLOAM (management) Message; SF = Signal Fail (bit error rate / BER above hard threshold); SD = Signal Degrade (BER above warning threshold); TX Too Long / TX Mismatch (transmit timing or config faults). All-zero = healthy. SNAPSHOT at scrape time -- transient events shorter than --interval (default 5 min) are missed. See \"Alarm raises (24h)\" below for cumulative transition history that survives between scrapes.",
+      "description": "1 = raised, 0 = clear. Severity, worst first: LOS = Loss of Signal (no light from the OLT, the carrier-side equipment); LOF = Loss of Frame sync; LOM = Loss of PLOAM (management) Message; SF = Signal Fail (bit error rate / BER above hard threshold); SD = Signal Degrade (BER above warning threshold); TX Too Long / TX Mismatch (transmit timing or config faults). All-zero = healthy.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1066,7 +1066,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 14,
         "x": 6,
         "y": 2
@@ -2332,7 +2332,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 4,
         "x": 20,
         "y": 2
@@ -4423,147 +4423,6 @@
         }
       ],
       "description": "Resident memory of the collector process (RSS) in MiB."
-    },
-    {
-      "id": 200,
-      "type": "bargauge",
-      "title": "Alarm raises (24h)",
-      "description": "Cumulative count of clear -> raised transitions for each alarm in the last 24 hours. Companion to the Alarms snapshot above: the gauges only reflect state at scrape time, so an alarm that raised AND cleared between two fetches (5 min apart by default) leaves both panels green. This panel preserves any transition we observed at least once -- so a long alarm we did sample stays visible in 24h history forever after. Sub-fetch-interval events are still firmware-invisible (no alarm-history exposed via diag or omcicli on this firmware -- see docs/QUIRKS.md).",
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 6
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "A",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_los_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "Loss of Signal"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "B",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_lof_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "Loss of Frame"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "C",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_lom_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "Loss of PLOAM"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "D",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_sf_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "Signal Fail"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "E",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_sd_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "Signal Degrade"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "F",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_tx_too_long_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "TX Too Long"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "refId": "G",
-          "editorMode": "code",
-          "range": true,
-          "instant": false,
-          "expr": "increase(gpon_alarm_tx_mismatch_raises_total{instance=~\"$instance\", ip=~\"$ip\"}[24h])",
-          "legendFormat": "TX Mismatch"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "showUnfilled": true,
-        "valueMode": "color",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "pluginVersion": "11.4.0"
     }
   ],
   "refresh": "1m",
