@@ -429,7 +429,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[5m])))",
+          "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[15m])))",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
