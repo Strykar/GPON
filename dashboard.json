@@ -458,7 +458,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Internal calibration error is +/-3C\nCommercial: 0 - 70C\nIndustrial: -40 - 85C",
+      "description": "SFP SoC temperature with colour bands matching SFP-MSA temperature classes. Green: 0-70 C (commercial in-spec). Yellow: -5-0 C and 70-85 C (extended-only zone). Orange: -40 to -5 C (industrial-only zone). Red: outside -40 to 85 C (out of spec for any standard variant).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -503,21 +503,35 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
                 "color": "orange",
-                "value": 65
+                "value": -40
+              },
+              {
+                "color": "yellow",
+                "value": -5
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 70
               },
               {
                 "color": "red",
-                "value": 70
+                "value": 85
               }
             ]
           },
           "unit": "celsius",
-          "unitScale": true
+          "unitScale": true,
+          "min": -50,
+          "max": 100
         },
         "overrides": []
       },
@@ -555,7 +569,7 @@
           "refId": "A"
         }
       ],
-      "title": "SFP (commercial) SoC temperature",
+      "title": "SoC temperature",
       "type": "timeseries"
     },
     {
