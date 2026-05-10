@@ -3393,18 +3393,23 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "blue",
+                "value": 2
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "min": 0,
+          "max": 10
         },
         "overrides": []
       },
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -3412,10 +3417,12 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "sizing": "auto",
+        "minVizHeight": 75,
+        "minVizWidth": 75
       },
       "pluginVersion": "11.0.0",
-      "type": "stat",
+      "type": "gauge",
       "id": 176,
       "title": "IGMP groups joined",
       "gridPos": {
@@ -3440,7 +3447,7 @@
     },
     {
       "id": 180,
-      "type": "stat",
+      "type": "gauge",
       "title": "Sockets in use",
       "gridPos": {
         "h": 6,
@@ -3510,18 +3517,27 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "min": 0,
+          "max": 100
         },
         "overrides": []
       },
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
         "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -3529,7 +3545,9 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "sizing": "auto",
+        "minVizHeight": 75,
+        "minVizWidth": 75
       },
       "pluginVersion": "11.0.0"
     },
