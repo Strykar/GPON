@@ -3708,7 +3708,8 @@
         "textMode": "name",
         "wideLayout": true
       },
-      "pluginVersion": "11.0.0"
+      "pluginVersion": "11.0.0",
+      "description": "LAN-side Ethernet (eth0) MAC of the SFP. The GPON/GEM layers don't carry per-flow MAC addresses -- the OLT identifies this ONU by its GPON serial number, not a MAC. The PON-side virtual interfaces (pon0, eth0.2/3, nas0) all show a placeholder 00:00:00:01:00:02 in /sys/class/net; only eth0 has a real MAC."
     },
     {
       "datasource": {
