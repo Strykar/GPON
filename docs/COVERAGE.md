@@ -21,7 +21,11 @@ and not duplicated here.
 | `cat /proc/meminfo` | `gpon_memory_total_bytes`, `_free_bytes`, `_buffers_bytes`, `_cached_bytes` | SFP RAM |
 | `cat /proc/uptime` | `gpon_system_uptime_seconds` | (not charted yet) |
 | `cat /sys/class/net/eth0/address` | `gpon_mac_info{mac}` | SFP MAC |
-| `cat /proc/net/dev` | `gpon_network_{receive,transmit}_{bytes,packets,errors,dropped}_total{iface}` | LAN throughput, LAN errors and drops |
+| `cat /proc/net/dev` | `gpon_network_{receive,transmit}_{bytes,packets,errors,dropped}_total{iface}` | LAN throughput, LAN errors and drops, Network traffic by packets |
+| `cat /proc/net/snmp` | `gpon_snmp_total{protocol,name}`, `gpon_tcp_current_established` | TCP retransmit rate, TCP connections, UDP errors |
+| `cat /proc/net/sockstat` | `gpon_sockets_used`, `gpon_tcp_sockets{state}`, `gpon_udp_sockets_inuse` | TCP connections (time-wait series) |
+| `cat /proc/sys/net/netfilter/nf_conntrack_{count,max}` | `gpon_conntrack_entries`, `gpon_conntrack_max` | Conntrack table fill |
+| `cat /proc/net/igmp` | `gpon_igmp_groups{iface}` | IGMP groups joined |
 | `ps` | `gpon_device_info{serial_number}` | (parsed from `omci_app -s <SN>` argv; replaces broken `omcicli get sn`) |
 | `diag pon get transceiver tx-power` | `gpon_tx_power_dbm` | Signal Tx power, Laser Tx (1310 nm) |
 | `diag pon get transceiver rx-power` | `gpon_rx_power_dbm` | Signal Rx power, Laser Rx (1490 nm) |
@@ -430,6 +434,22 @@ firmware.
 | `gpon_network_transmit_packets_total{iface}` | TX packets |
 | `gpon_network_transmit_errors_total{iface}` | TX errors |
 | `gpon_network_transmit_dropped_total{iface}` | TX dropped |
+
+### Kernel network stack (Counter / Gauge)
+
+Sourced from `/proc/net/snmp`, `/proc/net/sockstat`,
+`/proc/sys/net/netfilter/nf_conntrack_*`, and `/proc/net/igmp`.
+
+| Metric | Type | What it is |
+| --- | --- | --- |
+| `gpon_snmp_total{protocol="Ip\|Tcp\|Udp",name=...}` | Counter | Selected fields from `/proc/net/snmp`. Tcp: ActiveOpens, PassiveOpens, AttemptFails, EstabResets, InSegs, OutSegs, RetransSegs, InErrs, OutRsts. Ip: ForwDatagrams, InDelivers, OutRequests, ReasmFails. Udp: InDatagrams, NoPorts, InErrors, OutDatagrams, RcvbufErrors, SndbufErrors. |
+| `gpon_tcp_current_established` | Gauge | TCP connections currently in ESTABLISHED state (Tcp.CurrEstab; the only snmp field exposed as a gauge because it's a current-value, not cumulative). |
+| `gpon_sockets_used` | Gauge | Total open sockets across all protocols (`sockets: used N`). |
+| `gpon_tcp_sockets{state="inuse\|orphan\|tw\|alloc"}` | Gauge | TCP sockets by lifecycle state. `tw` = TIME_WAIT, climbs on busy hosts. |
+| `gpon_udp_sockets_inuse` | Gauge | UDP sockets currently bound. |
+| `gpon_conntrack_entries` | Gauge | Current entries in the netfilter conntrack table. |
+| `gpon_conntrack_max` | Gauge | Conntrack table size limit (`nf_conntrack_max`). Dashboard uses `100 * entries / max` to chart fill %. |
+| `gpon_igmp_groups{iface}` | Gauge | Number of multicast groups joined per interface. Useful for IPTV diagnostics. |
 
 ### Self-health metrics
 

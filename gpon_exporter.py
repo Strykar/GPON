@@ -226,6 +226,40 @@ sfp_net_tx_errors  = Counter('gpon_network_transmit_errors',  'TX errors per int
 sfp_net_tx_dropped = Counter('gpon_network_transmit_dropped', 'TX dropped per interface', ['ip', 'iface'])
 _sfp_net_last = {}  # (ip, iface, metric_name) -> last absolute
 
+# /proc/net/snmp counters (TCP/IP/UDP). Same naming convention as
+# node_exporter (e.g. node_netstat_Tcp_RetransSegs); we drop the "netstat_"
+# prefix and use {protocol, name} labels instead. Only the fields useful
+# enough to chart for a SOHO/router audience are tracked.
+_SNMP_TRACKED = {
+    'Ip':  ('ForwDatagrams', 'InDelivers', 'OutRequests', 'ReasmFails'),
+    'Tcp': ('ActiveOpens', 'PassiveOpens', 'AttemptFails', 'EstabResets',
+            'InSegs', 'OutSegs', 'RetransSegs', 'InErrs', 'OutRsts'),
+    'Udp': ('InDatagrams', 'NoPorts', 'InErrors', 'OutDatagrams',
+            'RcvbufErrors', 'SndbufErrors'),
+}
+sfp_snmp_counter = Counter('gpon_snmp', 'Counters from /proc/net/snmp', ['ip', 'protocol', 'name'])
+sfp_tcp_curr_estab = Gauge('gpon_tcp_current_established',
+                           'TCP CurrEstab gauge -- connections in ESTABLISHED state', ['ip'])
+_sfp_snmp_last = {}  # (ip, protocol, name) -> last absolute
+
+# /proc/net/sockstat (gauges; current counts, not cumulative).
+sfp_sockets_used = Gauge('gpon_sockets_used',
+                         'Total open sockets (sockets: used N)', ['ip'])
+sfp_tcp_inuse  = Gauge('gpon_tcp_sockets', 'TCP sockets by state', ['ip', 'state'])
+sfp_udp_inuse  = Gauge('gpon_udp_sockets_inuse', 'UDP sockets in use', ['ip'])
+
+# /proc/sys/net/netfilter/nf_conntrack_{count,max}
+sfp_conntrack_count = Gauge('gpon_conntrack_entries',
+                            'Current conntrack table entries', ['ip'])
+sfp_conntrack_max   = Gauge('gpon_conntrack_max',
+                            'Conntrack table size limit (nf_conntrack_max)', ['ip'])
+
+# /proc/net/igmp -- count of multicast group memberships per interface.
+# Format is one "Idx Device : Count Querier" header line per iface, then one
+# group line per group joined. We count the group lines per interface.
+sfp_igmp_groups = Gauge('gpon_igmp_groups',
+                        'IGMP multicast groups joined, per interface', ['ip', 'iface'])
+
 # ----- Alarms (diag gpon get alarm-status) ----------------------------------
 ALARM_KEYS = {
     'LOS':         ('los',         'Loss of Signal'),
@@ -607,6 +641,98 @@ def handle_proc_net_dev(text, ip):
             _sfp_net_last[key] = absolute
 
 
+def handle_proc_net_snmp(text, ip):
+    """Pairs of lines: header (`Tcp: name1 name2 ...`) then values
+    (`Tcp: v1 v2 ...`). Tcp.CurrEstab is special-cased as a Gauge because
+    it's a current-value metric, not a cumulative one."""
+    lines = text.splitlines()
+    headers = {}  # protocol -> [field names]
+    for line in lines:
+        proto, _, rest = line.partition(': ')
+        if not rest:
+            continue
+        toks = rest.split()
+        # First sighting of a protocol is its header line (alphabetic tokens);
+        # the next sighting is its value line (numeric tokens).
+        if proto not in headers:
+            headers[proto] = toks
+            continue
+        # Values line.
+        values = dict(zip(headers[proto], toks))
+        # CurrEstab is a Gauge; everything else tracked is a Counter.
+        if proto == 'Tcp' and 'CurrEstab' in values:
+            try:
+                sfp_tcp_curr_estab.labels(ip=ip).set(int(values['CurrEstab']))
+            except ValueError:
+                pass
+        for name in _SNMP_TRACKED.get(proto, ()):
+            if name not in values:
+                continue
+            try:
+                absolute = int(values[name])
+            except ValueError:
+                continue
+            key = (ip, proto, name)
+            prev = _sfp_snmp_last.get(key)
+            if prev is None:
+                sfp_snmp_counter.labels(ip=ip, protocol=proto, name=name)
+            elif absolute < prev:
+                pass  # rebase on reboot
+            else:
+                sfp_snmp_counter.labels(ip=ip, protocol=proto, name=name).inc(absolute - prev)
+            _sfp_snmp_last[key] = absolute
+        del headers[proto]  # ready for the next pair if it shows up again
+
+
+_SOCKSTAT_RE = re.compile(r'(\w+)\s+(\d+)')
+
+def handle_proc_net_sockstat(text, ip):
+    """Lines like 'TCP: inuse 4 orphan 0 tw 10 alloc 4 mem 1' --
+    key/value pairs after the protocol name."""
+    for line in text.splitlines():
+        proto, _, rest = line.partition(': ')
+        if not rest:
+            continue
+        pairs = dict(_SOCKSTAT_RE.findall(rest))
+        if proto == 'sockets' and 'used' in pairs:
+            sfp_sockets_used.labels(ip=ip).set(int(pairs['used']))
+        elif proto == 'TCP':
+            for state in ('inuse', 'orphan', 'tw', 'alloc'):
+                if state in pairs:
+                    sfp_tcp_inuse.labels(ip=ip, state=state).set(int(pairs[state]))
+        elif proto == 'UDP' and 'inuse' in pairs:
+            sfp_udp_inuse.labels(ip=ip).set(int(pairs['inuse']))
+
+
+def handle_conntrack(text, ip):
+    """`cat <count> <max>` returns two integers on consecutive lines."""
+    nums = re.findall(r'^\s*(\d+)\s*$', text, re.MULTILINE)
+    if len(nums) >= 2:
+        sfp_conntrack_count.labels(ip=ip).set(int(nums[0]))
+        sfp_conntrack_max.labels(ip=ip).set(int(nums[1]))
+
+
+def handle_proc_net_igmp(text, ip):
+    """Count group lines per interface. Header lines start with a digit
+    (Idx) and contain the iface name; group lines are indented and contain
+    a hex address pattern. Counting group lines per iface gives the
+    number of multicast groups joined."""
+    current = None
+    counts = {}
+    for line in text.splitlines():
+        # Header line: starts with index digit, then iface, then ":"
+        m = re.match(r'^\d+\s+(\S+)\s+:', line)
+        if m:
+            current = m.group(1)
+            counts.setdefault(current, 0)
+            continue
+        # Group line: leading whitespace then hex group address
+        if current and re.match(r'^\s+[0-9A-Fa-f]{8}\s', line):
+            counts[current] += 1
+    for iface, n in counts.items():
+        sfp_igmp_groups.labels(ip=ip, iface=iface).set(n)
+
+
 def handle_firmware(text, ip):
     # /etc/version line looks like: "V1.0-220923 --  Fri Sep 23 19:36:10 CST 2022"
     # Reject BusyBox-style error output (e.g. "cat: can't open ...",
@@ -651,6 +777,11 @@ DIAG_PROBES = [
     ('proc_uptime',  'cat /proc/uptime',                      handle_proc_uptime),
     ('eth0_mac',     'cat /sys/class/net/eth0/address',       handle_eth0_mac),
     ('net_dev',      'cat /proc/net/dev',                     handle_proc_net_dev),
+    ('net_snmp',     'cat /proc/net/snmp',                    handle_proc_net_snmp),
+    ('net_sockstat', 'cat /proc/net/sockstat',                handle_proc_net_sockstat),
+    ('conntrack',    'cat /proc/sys/net/netfilter/nf_conntrack_count '
+                     '/proc/sys/net/netfilter/nf_conntrack_max',  handle_conntrack),
+    ('net_igmp',     'cat /proc/net/igmp',                    handle_proc_net_igmp),
     ('sn',           'ps',                                    handle_sn),
     ('bias_current', 'diag pon get transceiver bias-current',
         simple(bias_current_gauge, _ma_to_amperes)),

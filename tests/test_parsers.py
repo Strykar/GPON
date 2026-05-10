@@ -470,6 +470,86 @@ def test_proc_net_dev_handles_multiple_interfaces():
     assert v('gpon_network_transmit_bytes_total', 'eth0.2') == 11
 
 
+def test_proc_net_snmp_parses_tcp_and_udp():
+    """/proc/net/snmp comes as alternating header/value pairs per protocol.
+    Tcp.CurrEstab is special-cased as a Gauge; tracked Counters land
+    deltas-from-zero after the baseline call."""
+    handler = next(h for k, _, h in c.PROBES if k == 'net_snmp')
+    test_ip = '10.0.95.1'
+    def v_counter(proto, name):
+        return REGISTRY.get_sample_value('gpon_snmp_total',
+            {'ip': test_ip, 'protocol': proto, 'name': name})
+    def v_estab():
+        return REGISTRY.get_sample_value('gpon_tcp_current_established', {'ip': test_ip})
+    baseline = (
+        'Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens '
+        'AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts\n'
+        'Tcp: 1 200 120000 -1 0 0 0 0 0 0 0 0 0 0\n'
+        'Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors\n'
+        'Udp: 0 0 0 0 0 0\n'
+    )
+    handler(baseline, test_ip)
+    real = (
+        'Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens '
+        'AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts\n'
+        'Tcp: 1 200 120000 -1 5 1541 0 652 17 941540 1759675 88 0 450\n'
+        'Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors\n'
+        'Udp: 0 4989 0 0 0 0\n'
+    )
+    handler(real, test_ip)
+    assert v_estab() == 17, 'CurrEstab should be a gauge, not a Counter'
+    assert v_counter('Tcp', 'ActiveOpens')   == 5
+    assert v_counter('Tcp', 'PassiveOpens')  == 1541
+    assert v_counter('Tcp', 'RetransSegs')   == 88
+    assert v_counter('Udp', 'NoPorts')       == 4989
+
+
+def test_proc_net_sockstat_parses_tcp_states():
+    handler = next(h for k, _, h in c.PROBES if k == 'net_sockstat')
+    test_ip = '10.0.95.2'
+    def v(name, **labels):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip, **labels})
+    handler(
+        'sockets: used 23\n'
+        'TCP: inuse 4 orphan 0 tw 10 alloc 4 mem 1\n'
+        'UDP: inuse 1 mem 0\n', test_ip)
+    assert v('gpon_sockets_used') == 23
+    assert v('gpon_tcp_sockets', state='inuse')  == 4
+    assert v('gpon_tcp_sockets', state='tw')     == 10
+    assert v('gpon_tcp_sockets', state='orphan') == 0
+    assert v('gpon_udp_sockets_inuse') == 1
+
+
+def test_conntrack_parses_count_and_max():
+    handler = next(h for k, _, h in c.PROBES if k == 'conntrack')
+    test_ip = '10.0.95.3'
+    def v(name):
+        return REGISTRY.get_sample_value(name, {'ip': test_ip})
+    handler('20\n1916\n', test_ip)
+    assert v('gpon_conntrack_entries') == 20
+    assert v('gpon_conntrack_max') == 1916
+
+
+def test_proc_net_igmp_counts_groups_per_interface():
+    """Header lines look like `1\\teth0      :     1      V3` then
+    indented group lines `\\t\\t\\tE0000001     1 0:00000000\\t\\t0`. We
+    count group lines per iface."""
+    handler = next(h for k, _, h in c.PROBES if k == 'net_igmp')
+    test_ip = '10.0.95.4'
+    def v(iface):
+        return REGISTRY.get_sample_value('gpon_igmp_groups',
+            {'ip': test_ip, 'iface': iface})
+    handler(
+        'Idx\tDevice    : Count Querier\tGroup    Users Timer\tReporter\n'
+        '1\teth0      :     2      V3\n'
+        '\t\t\tE0000001     1 0:00000000\t\t0\n'
+        '\t\t\tEFFFFFFA     1 0:00000000\t\t0\n'
+        '2\tbr0       :     1      V2\n'
+        '\t\t\tE0000001     1 0:00000000\t\t0\n', test_ip)
+    assert v('eth0') == 2
+    assert v('br0') == 1
+
+
 def test_proc_stat_handles_per_cpu_lines_after_aggregate():
     """The aggregate 'cpu ' line comes first. The handler must take only that
     one and ignore 'cpu0', 'cpu1' etc. so a future SMP firmware doesn't
