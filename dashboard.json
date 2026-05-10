@@ -3407,9 +3407,10 @@
         "overrides": []
       },
       "options": {
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -3417,12 +3418,13 @@
           "fields": "",
           "values": false
         },
-        "sizing": "auto",
-        "minVizHeight": 75,
-        "minVizWidth": 75
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "sizing": "auto"
       },
       "pluginVersion": "11.0.0",
-      "type": "gauge",
+      "type": "bargauge",
       "id": 176,
       "title": "IGMP groups joined",
       "gridPos": {
@@ -3447,7 +3449,7 @@
     },
     {
       "id": 180,
-      "type": "gauge",
+      "type": "bargauge",
       "title": "Sockets in use",
       "gridPos": {
         "h": 6,
@@ -3535,9 +3537,10 @@
         "overrides": []
       },
       "options": {
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -3545,9 +3548,10 @@
           "fields": "",
           "values": false
         },
-        "sizing": "auto",
-        "minVizHeight": 75,
-        "minVizWidth": 75
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "sizing": "auto"
       },
       "pluginVersion": "11.0.0"
     },
