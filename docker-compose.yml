@@ -9,14 +9,29 @@ services:
       # host's Prometheus but not from the wider network. Change to
       # "8114:8114" for an all-interfaces bind.
       - "127.0.0.1:8114:8114"
-    env_file: .env
-    # bind-address must be 0.0.0.0 *inside* the container so the port
-    # mapping above can reach the listener; the host-side binding above
-    # is what controls reachability. --known-hosts '' disables the host-key
-    # persistence file because USER nobody's $HOME is /nonexistent in this
-    # image; without this, every fetch logs a "permission denied" warning.
+    # Pull the password from the environment, NOT from the command line.
+    # Anything in `command:` ends up in /proc/1/cmdline inside the
+    # container and in `docker inspect` output -- both are readable by
+    # any host process with appropriate caps and any orchestrator audit
+    # trail captures it. The exporter's _parse_device falls back on
+    # ONU_SSH_PASSWORD when the password is omitted from --device, so
+    # the credential never enters argv.
+    #
+    # Subset to named keys (not env_file: .env) so future additions to
+    # .env don't silently leak into the container's environment.
+    environment:
+      - ONU_SSH_PASSWORD
+      - ONU_USER
+      - ONU_HOST
+      - ONU_PORT
+    # bind-address 0.0.0.0 INSIDE the container so the port mapping
+    # above can reach the listener; the host-side binding controls
+    # actual reachability. --known-hosts '' disables the host-key
+    # persistence file because USER nobody's $HOME is /nonexistent in
+    # this image; without it every fetch would log a permission-denied
+    # warning.
     command: >
-      --device ${ONU_DEVICE}
+      --device ${ONU_USER:-admin}@${ONU_HOST}:${ONU_PORT:-22}
       --webserver-port 8114
       --bind-address 0.0.0.0
       --known-hosts ''
