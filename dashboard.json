@@ -2325,9 +2325,7 @@
           },
           "unit": "short",
           "unitScale": true,
-          "decimals": 0,
-          "min": 0,
-          "max": 5
+          "decimals": 0
         },
         "overrides": []
       },
@@ -2339,10 +2337,10 @@
       },
       "id": 136,
       "options": {
-        "displayMode": "gradient",
-        "orientation": "horizontal",
-        "showUnfilled": true,
-        "valueMode": "color",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -2350,10 +2348,8 @@
           "fields": "",
           "values": false
         },
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "sizing": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "10.3.3",
       "targets": [
@@ -2375,15 +2371,15 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "refId": "B",
-          "legendFormat": "Ranging",
+          "legendFormat": "Ranging request",
           "expr": "sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
           "editorMode": "code",
           "range": true,
           "instant": false
         }
       ],
-      "title": "Activation events (1h)",
-      "type": "bargauge"
+      "title": "Activation events (last 1h)",
+      "type": "stat"
     },
     {
       "datasource": {
