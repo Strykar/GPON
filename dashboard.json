@@ -3202,8 +3202,8 @@
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "bottom",
+          "displayMode": "list",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -3324,8 +3324,8 @@
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "bottom",
+          "displayMode": "list",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -3415,7 +3415,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "value_and_name"
       },
       "pluginVersion": "11.0.0",
       "type": "stat",
@@ -3423,7 +3423,7 @@
       "title": "IGMP groups joined",
       "gridPos": {
         "h": 6,
-        "w": 24,
+        "w": 8,
         "x": 0,
         "y": 128
       },
