@@ -2900,10 +2900,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max",
-            "min"
+            "lastNotNull"
           ],
           "displayMode": "table",
           "placement": "right",
@@ -3229,7 +3226,7 @@
           },
           "editorMode": "code",
           "expr": "gpon_tcp_current_established{instance=~\"$instance\"}",
-          "legendFormat": "established (gauge)",
+          "legendFormat": "established",
           "range": true,
           "refId": "A"
         },
@@ -3240,7 +3237,7 @@
           },
           "editorMode": "code",
           "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"tw\"}",
-          "legendFormat": "time-wait (gauge)",
+          "legendFormat": "time-wait",
           "range": true,
           "refId": "B"
         },
@@ -3251,7 +3248,7 @@
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[5m])",
-          "legendFormat": "active opens / sec",
+          "legendFormat": "active opens/sec",
           "range": true,
           "refId": "C"
         },
@@ -3262,7 +3259,7 @@
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[5m])",
-          "legendFormat": "passive opens / sec",
+          "legendFormat": "passive opens/sec",
           "range": true,
           "refId": "D"
         }
@@ -3351,7 +3348,7 @@
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"NoPorts\"}[15m])",
-          "legendFormat": "NoPorts (no listener)",
+          "legendFormat": "NoPorts",
           "range": true,
           "refId": "A"
         },
@@ -3442,7 +3439,7 @@
       ]
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
