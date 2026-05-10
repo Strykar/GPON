@@ -131,17 +131,20 @@ Inside Docker/Podman the compose file already does this for you.
 
 ### systemd
 
-The repo's `odi.service` is the canonical example: env-file based password,
+The repo's `odi.service` is the canonical example: hardened
+(`DynamicUser=yes`, `StateDirectory=`, `NoNewPrivileges`, capability
+strip, address-family/namespace restrictions), env-file based password,
 no `After=sshd.service` (the collector is an SSH client, not a server),
-sensible `RestartSec`/`StartLimit*`. Edit the hostname, port, and user
-inline; drop it in `/etc/systemd/system/`; create the credentials file
-at `/etc/gpon-exporter/credentials` containing exactly:
+sensible `RestartSec`/`StartLimit*` paired with the daemon's
+exit-on-auth-failure behaviour.
+
+Drop the unit in `/etc/systemd/system/`, edit the SFP address and
+webserver port in `ExecStart=`, then create the credentials file at
+`/etc/gpon-exporter/credentials` with exactly:
 
 ```sh
 ONU_SSH_PASSWORD=your-password-here
 ```
-
-then:
 
 ```sh
 sudo install -m 0600 -o root -g root /dev/null /etc/gpon-exporter/credentials
@@ -150,8 +153,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now odi
 ```
 
-The 0600 + root-owned permissions matter — systemd does not enforce them,
-and a 0644 file with `ONU_SSH_PASSWORD=...` is a foot-gun on a multi-user host.
+The 0600 + root-owned permissions matter -- systemd does not enforce
+them, and a 0644 file with `ONU_SSH_PASSWORD=...` is a foot-gun on a
+multi-user host. Even with `DynamicUser=yes`, the credentials file is
+read by systemd itself before privileges drop, so the dynamic UID
+never reads it directly. The known-hosts file is auto-created at
+`/var/lib/gpon-exporter/known_hosts` (managed by `StateDirectory=`,
+owned by the dynamic UID, persisted across restarts and reboots).
 
 ### Docker / Podman
 

@@ -16,18 +16,58 @@ StartLimitIntervalSec=60
 [Service]
 Type=simple
 
-# Password lives in /etc/gpon-exporter/credentials (mode 0600), one line:
-#   ONU_SSH_PASSWORD=your-password-here
-# Putting it on the ExecStart line leaks it through `ps`, `journalctl -u odi`
-# and `systemctl status odi`.
+# Password lives in /etc/gpon-exporter/credentials (mode 0600 root:root),
+# one line: ONU_SSH_PASSWORD=your-password-here
+# systemd parses EnvironmentFile= BEFORE switching to the dynamic UID,
+# so the file can stay 0600 root-owned and the dynamic user never reads
+# it directly.
 EnvironmentFile=/etc/gpon-exporter/credentials
 
-# Edit the path to wherever you cloned/installed the script, plus your SFP's
-# IP and credentials. Webserver-port 8114 is the documented default; change
-# it if your prometheus.yml scrape_config points elsewhere.
+# --- Hardening ---------------------------------------------------------
+# Run as a transient unprivileged user (UID assigned per start). The
+# exporter doesn't need persistent on-disk identity beyond /var/lib/
+# gpon-exporter (created automatically by StateDirectory= and owned by
+# the dynamic UID with 0700).
+DynamicUser=yes
+StateDirectory=gpon-exporter
+StateDirectoryMode=0700
+
+# Strip everything we don't need. The exporter binds an unprivileged
+# port, doesn't write outside its StateDirectory, doesn't talk to any
+# kernel control interface, and only needs IPv4/IPv6 sockets.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+# MemoryDenyWriteExecute and SystemCallFilter omitted: the cryptography
+# library that paramiko depends on uses runtime code generation in some
+# configurations and a strict syscall allow-list often breaks paramiko's
+# I/O paths. Enable these only after testing on your specific
+# Python/paramiko/cryptography versions.
+
+# --- ExecStart ---------------------------------------------------------
+# /usr/local/bin is the FHS-correct location for sysadmin-installed
+# scripts; adjust if you cloned the repo elsewhere. Webserver-port 8114
+# is the documented default; change it if your prometheus.yml scrape
+# config points elsewhere. --known-hosts lives under StateDirectory so
+# the dynamic UID can write to it across restarts (StateDirectory
+# preserves ownership).
 ExecStart=/usr/bin/python3 /usr/local/bin/gpon_exporter.py \
     --device admin@192.168.1.1:22 \
-    --webserver-port 8114
+    --webserver-port 8114 \
+    --known-hosts ${STATE_DIRECTORY}/known_hosts
 
 Restart=on-failure
 RestartSec=5s
