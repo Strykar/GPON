@@ -358,7 +358,7 @@
       ],
       "title": "SFP RAM",
       "type": "gauge",
-      "description": "Resident memory of the collector process (RSS) in MiB."
+      "description": "SFP RAM utilisation: 100 * (total - free - buffers) / total. Sourced from /proc/meminfo on the SFP. Buffers are excluded so transient kernel I/O cache does not inflate the figure."
     },
     {
       "datasource": {
@@ -438,7 +438,7 @@
       ],
       "title": "SFP CPU",
       "type": "gauge",
-      "description": "Collector process CPU usage rate (5m). Steady low value means the daemon is fetching normally."
+      "description": "Aggregate CPU utilisation on the SFP itself (1 - idle), 15m rate. Sourced from /proc/stat on the SFP scraped over SSH. Steady low value means the SFP is not under load."
     },
     {
       "collapsed": false,
@@ -458,7 +458,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "SFP SoC temperature with colour bands matching the SFP-MSA scheme used by Tx/Rx power panels. Green: 0 to 70 C (commercial). Orange: -40 to 0 C and 70 to 85 C (extended/industrial-only zones). Red: outside -40 to 85 C (out of spec for any standard variant).",
+      "description": "SFP SoC temperature with colour bands matching the MSA (Multi-Source Agreement, the cross-vendor SFP transceiver standard) scheme used by Tx/Rx power panels. Green: 0 to 70 C (commercial). Orange: -40 to 0 C and 70 to 85 C (extended/industrial-only zones). Red: outside -40 to 85 C (out of spec for any standard variant).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1024,7 +1024,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "1 = raised, 0 = clear. Severity ranking, worst first: LOS = fibre disconnected (catastrophic); LOF = loss of frame sync (severe); LOM = loss of PLOAM message (severe); SF = signal fail, BER above threshold (severe); SD = signal degrade, BER drift (warning); TX Too Long, TX Mismatch = configuration warnings.",
+      "description": "1 = raised, 0 = clear. Severity, worst first: LOS = Loss of Signal (no light from the OLT, the carrier-side equipment); LOF = Loss of Frame sync; LOM = Loss of PLOAM (management) Message; SF = Signal Fail (bit error rate / BER above hard threshold); SD = Signal Degrade (BER above warning threshold); TX Too Long / TX Mismatch (transmit timing or config faults). All-zero = healthy.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2161,7 +2161,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "OMCI (ONU Management and Control Interface, ITU-T G.988) admin traffic. Low steady rate is normal; spikes accompany config changes, MIB updates, or OLT-driven re-provisioning. Upstream OMCI counters are flat on this firmware so they are not charted.",
+      "description": "OMCI (ONU Management and Control Interface, defined in International Telecommunication Union standard ITU-T G.988) admin traffic. Low steady rate is normal; spikes accompany config changes, MIB updates, or OLT-driven re-provisioning. Upstream OMCI counters are flat on this firmware so they are not charted.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2303,7 +2303,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Combined SN-request and ranging-request events the SFP has received in the last hour. Zero in healthy steady-state operation. Any non-zero reading means the OLT is re-ranging or re-discovering this ONU: link flap, OLT restart, or scheduled provisioning.",
+      "description": "SN (Serial Number) and ranging events the OLT (Optical Line Terminal, carrier-side equipment) exchanged with this ONU (Optical Network Unit, your SFP) in the last 1h. Window is fixed, independent of the dashboard time range. Zero in steady-state. Non-zero means the OLT had to re-discover or re-range -- typically a fibre flap, OLT restart, or scheduled provisioning.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2842,7 +2842,7 @@
           "refId": "D"
         }
       ],
-      "description": "Cable/PHY-layer error and drop rates on eth0 (the SFP cage contact). Should be flat zero -- non-zero means bad SFP cage seating, dirty contacts, EMI, or duplex mismatch."
+      "description": "Cable/PHY-layer error and drop rates on eth0 (the SFP cage contact). Should be flat zero -- non-zero means bad SFP cage seating, dirty contacts, EMI (electromagnetic interference), or duplex mismatch."
     },
     {
       "id": 170,
@@ -3057,7 +3057,7 @@
           "refId": "A"
         }
       ],
-      "description": "SFP-side netfilter conntrack table fill. The SFP only NATs in HGU mode -- in SFU mode (the typical setup) traffic bridges transparently and this stays near zero. This is the SFP's own conntrack, not your router's."
+      "description": "SFP-side netfilter conntrack table fill. The SFP only NATs in HGU (Home Gateway Unit, router-mode firmware) -- in SFU (Single Family Unit, bridge-mode firmware, the typical setup) traffic bridges transparently and this stays near zero. This is the SFP's own conntrack, not your router's."
     },
     {
       "datasource": {
@@ -3461,7 +3461,7 @@
           "refId": "A"
         }
       ],
-      "description": "Multicast groups the SFP's own kernel has joined per interface. In SFU mode every interface shows 1 (just the default 224.0.0.1 all-hosts group). Becomes interesting only on HGU/IGMP-snooping firmware where IPTV joins/leaves change the count."
+      "description": "Multicast groups the SFP's own kernel has joined per interface. In SFU (Single Family Unit, bridge-mode firmware) every interface shows 1 (just the default 224.0.0.1 all-hosts group). Becomes interesting only on HGU (Home Gateway Unit, router-mode firmware) with IGMP-snooping enabled, where IPTV joins/leaves change the count."
     },
     {
       "id": 180,
@@ -4287,7 +4287,8 @@
           "range": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Collector process CPU usage rate (5m). Steady low value means the daemon is fetching normally."
     },
     {
       "datasource": {
@@ -4379,7 +4380,8 @@
           "range": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Resident memory of the collector process (RSS) in MiB."
     }
   ],
   "refresh": "1m",
