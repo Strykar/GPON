@@ -349,7 +349,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * (gpon_memory_total_bytes{instance=~\"$instance\"} - gpon_memory_free_bytes{instance=~\"$instance\"} - gpon_memory_buffers_bytes{instance=~\"$instance\"} - gpon_memory_cached_bytes{instance=~\"$instance\"}) / gpon_memory_total_bytes{instance=~\"$instance\"}",
+          "expr": "100 * (gpon_memory_total_bytes{instance=~\"$instance\", ip=~\"$ip\"} - gpon_memory_free_bytes{instance=~\"$instance\", ip=~\"$ip\"} - gpon_memory_buffers_bytes{instance=~\"$instance\", ip=~\"$ip\"} - gpon_memory_cached_bytes{instance=~\"$instance\", ip=~\"$ip\"}) / gpon_memory_total_bytes{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -429,7 +429,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[15m])))",
+          "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\", ip=~\"$ip\"}[15m])))",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -558,7 +558,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_temperature_celsius",
+          "expr": "gpon_temperature_celsius{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -670,7 +670,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_tx_power_dbm",
+          "expr": "gpon_tx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -775,7 +775,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_bias_current_amperes",
+          "expr": "gpon_bias_current_amperes{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -887,7 +887,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_rx_power_dbm",
+          "expr": "gpon_rx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{instance}}",
           "range": true,
@@ -1009,7 +1009,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_onu_state",
+          "expr": "gpon_onu_state{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "ONU",
           "range": true,
@@ -1095,7 +1095,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_los",
+          "expr": "gpon_alarm_los{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "Loss of Signal",
           "range": true,
@@ -1107,7 +1107,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_lof",
+          "expr": "gpon_alarm_lof{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "Loss of Frame",
           "range": true,
@@ -1119,7 +1119,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_lom",
+          "expr": "gpon_alarm_lom{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "Loss of MAC",
           "range": true,
@@ -1131,7 +1131,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_sf",
+          "expr": "gpon_alarm_sf{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "Signal Fail",
           "range": true,
@@ -1143,7 +1143,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_sd",
+          "expr": "gpon_alarm_sd{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "Signal Degraded",
           "range": true,
@@ -1155,7 +1155,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_tx_too_long",
+          "expr": "gpon_alarm_tx_too_long{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "TX Too Long",
           "range": true,
@@ -1167,7 +1167,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_alarm_tx_mismatch",
+          "expr": "gpon_alarm_tx_mismatch{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "TX Mismatch",
           "range": true,
@@ -1282,7 +1282,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_fec_correct_codewords_total[15m])",
+          "expr": "rate(gpon_ds_fec_correct_codewords_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "corrected",
           "range": true,
@@ -1397,7 +1397,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_fec_uncorrectable_codewords_total[15m])",
+          "expr": "rate(gpon_ds_fec_uncorrectable_codewords_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "uncorrectable",
           "range": true,
@@ -1527,7 +1527,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_bip_error_bits_total[15m])",
+          "expr": "rate(gpon_ds_bip_error_bits_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "error bits",
           "range": true,
@@ -1539,7 +1539,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_bip_error_blocks_total[15m])",
+          "expr": "rate(gpon_ds_bip_error_blocks_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "error blocks",
           "range": true,
@@ -1688,7 +1688,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_ethernet_unicast_total[15m])",
+          "expr": "rate(gpon_ds_ethernet_unicast_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "unicast",
           "range": true,
@@ -1700,7 +1700,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_ethernet_multicast_total[15m])",
+          "expr": "rate(gpon_ds_ethernet_multicast_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "multicast",
           "range": true,
@@ -1712,7 +1712,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_ethernet_fcs_errors_total[15m])",
+          "expr": "rate(gpon_ds_ethernet_fcs_errors_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "FCS errors",
           "range": true,
@@ -1846,7 +1846,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_bwmap_received_total[15m])",
+          "expr": "rate(gpon_ds_bwmap_received_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "received",
           "range": true,
@@ -1858,7 +1858,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_bwmap_crc_errors_total[15m])",
+          "expr": "rate(gpon_ds_bwmap_crc_errors_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "CRC errors",
           "range": true,
@@ -2007,7 +2007,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_ploam_received_total[15m])",
+          "expr": "rate(gpon_ds_ploam_received_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "DS received",
           "range": true,
@@ -2019,7 +2019,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_ploam_crc_errors_total[15m])",
+          "expr": "rate(gpon_ds_ploam_crc_errors_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "DS CRC errors",
           "range": true,
@@ -2031,7 +2031,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_us_ploam_transmitted_total[15m])",
+          "expr": "rate(gpon_us_ploam_transmitted_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "US transmitted",
           "range": true,
@@ -2146,7 +2146,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_gem_non_idle_total[15m])",
+          "expr": "rate(gpon_ds_gem_non_idle_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "non-idle frames",
           "range": true,
@@ -2276,7 +2276,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_omci_received_total[15m])",
+          "expr": "rate(gpon_ds_omci_received_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "DS received",
           "range": true,
@@ -2288,7 +2288,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_ds_omci_processed_total[15m])",
+          "expr": "rate(gpon_ds_omci_processed_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "DS processed",
           "range": true,
@@ -2358,7 +2358,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(gpon_activation_sn_requests_total{instance=~\"$instance\"}[1h])) + sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\"}[1h]))",
+          "expr": "sum by(ip)(increase(gpon_activation_sn_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h])) + sum by(ip)(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
           "instant": false,
           "legendFormat": "events",
           "range": true,
@@ -2704,7 +2704,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_receive_bytes_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_receive_bytes_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "rx",
           "range": true,
           "refId": "A"
@@ -2715,7 +2715,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_transmit_bytes_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_transmit_bytes_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "tx",
           "range": true,
           "refId": "B"
@@ -2803,7 +2803,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_receive_errors_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_receive_errors_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "rx errors",
           "range": true,
           "refId": "A"
@@ -2814,7 +2814,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_receive_dropped_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_receive_dropped_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "rx drops",
           "range": true,
           "refId": "B"
@@ -2825,7 +2825,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_transmit_errors_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_transmit_errors_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "tx errors",
           "range": true,
           "refId": "C"
@@ -2836,7 +2836,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_transmit_dropped_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
+          "expr": "rate(gpon_network_transmit_dropped_total{instance=~\"$instance\",iface=\"eth0\", ip=~\"$ip\"}[15m])",
           "legendFormat": "tx drops",
           "range": true,
           "refId": "D"
@@ -2940,7 +2940,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_receive_packets_total{instance=~\"$instance\",iface!=\"lo\"}[15m])",
+          "expr": "rate(gpon_network_receive_packets_total{instance=~\"$instance\",iface!=\"lo\", ip=~\"$ip\"}[15m])",
           "legendFormat": "{{iface}} - Receive",
           "range": true,
           "refId": "A"
@@ -2951,7 +2951,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "-1 * rate(gpon_network_transmit_packets_total{instance=~\"$instance\",iface!=\"lo\"}[15m])",
+          "expr": "-1 * rate(gpon_network_transmit_packets_total{instance=~\"$instance\",iface!=\"lo\", ip=~\"$ip\"}[15m])",
           "legendFormat": "{{iface}} - Transmit",
           "range": true,
           "refId": "B"
@@ -3051,7 +3051,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * gpon_conntrack_entries{instance=~\"$instance\"} / gpon_conntrack_max{instance=~\"$instance\"}",
+          "expr": "100 * gpon_conntrack_entries{instance=~\"$instance\", ip=~\"$ip\"} / gpon_conntrack_max{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "fill %",
           "range": true,
           "refId": "A"
@@ -3150,7 +3150,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "(100 * rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"RetransSegs\"}[15m]) / rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"OutSegs\"}[15m])) or on() vector(0)",
+          "expr": "(100 * rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"RetransSegs\", ip=~\"$ip\"}[15m]) / rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"OutSegs\", ip=~\"$ip\"}[15m])) or on() vector(0)",
           "legendFormat": "retrans %",
           "range": true,
           "refId": "A"
@@ -3242,7 +3242,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "A",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\", ip=~\"$ip\"}[15m])",
           "legendFormat": "active opens"
         },
         {
@@ -3253,7 +3253,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "B",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\", ip=~\"$ip\"}[15m])",
           "legendFormat": "passive opens"
         },
         {
@@ -3264,7 +3264,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "C",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"AttemptFails\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"AttemptFails\", ip=~\"$ip\"}[15m])",
           "legendFormat": "attempt fails"
         },
         {
@@ -3275,7 +3275,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "D",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\", ip=~\"$ip\"}[15m])",
           "legendFormat": "estab resets"
         }
       ],
@@ -3363,7 +3363,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"NoPorts\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"NoPorts\", ip=~\"$ip\"}[15m])",
           "legendFormat": "NoPorts",
           "range": true,
           "refId": "A"
@@ -3374,7 +3374,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"InErrors\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"InErrors\", ip=~\"$ip\"}[15m])",
           "legendFormat": "InErrors",
           "range": true,
           "refId": "B"
@@ -3385,7 +3385,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"RcvbufErrors\"}[15m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"RcvbufErrors\", ip=~\"$ip\"}[15m])",
           "legendFormat": "RcvbufErrors",
           "range": true,
           "refId": "C"
@@ -3455,7 +3455,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_igmp_groups{instance=~\"$instance\",iface!=\"lo\"}",
+          "expr": "gpon_igmp_groups{instance=~\"$instance\",iface!=\"lo\", ip=~\"$ip\"}",
           "legendFormat": "{{iface}}",
           "range": true,
           "refId": "A"
@@ -3485,7 +3485,7 @@
           },
           "editorMode": "code",
           "range": true,
-          "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"inuse\"}",
+          "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"inuse\", ip=~\"$ip\"}",
           "legendFormat": "TCP inuse",
           "refId": "A"
         },
@@ -3496,7 +3496,7 @@
           },
           "editorMode": "code",
           "range": true,
-          "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"tw\"}",
+          "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"tw\", ip=~\"$ip\"}",
           "legendFormat": "TCP TIME_WAIT",
           "refId": "B"
         },
@@ -3507,7 +3507,7 @@
           },
           "editorMode": "code",
           "range": true,
-          "expr": "gpon_udp_sockets_inuse{instance=~\"$instance\"}",
+          "expr": "gpon_udp_sockets_inuse{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "UDP inuse",
           "refId": "C"
         },
@@ -3518,7 +3518,7 @@
           },
           "editorMode": "code",
           "range": true,
-          "expr": "gpon_sockets_used{instance=~\"$instance\"}",
+          "expr": "gpon_sockets_used{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "total",
           "refId": "D"
         }
@@ -3657,7 +3657,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_exporter_up{instance=~\"$instance\"}",
+          "expr": "gpon_exporter_up{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "{{ip}}",
           "range": true,
           "refId": "A"
@@ -3687,7 +3687,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_mac_info{instance=~\"$instance\"}",
+          "expr": "gpon_mac_info{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "{{mac}}",
           "range": true,
           "refId": "A"
@@ -3754,7 +3754,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "A",
-          "expr": "gpon_device_info{instance=~\"$instance\"}",
+          "expr": "gpon_device_info{instance=~\"$instance\", ip=~\"$ip\"}",
           "legendFormat": "{{serial_number}}"
         }
       ],
@@ -3851,7 +3851,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_firmware_info",
+          "expr": "gpon_firmware_info{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{version}}",
           "range": true,
@@ -3917,7 +3917,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "time() - gpon_exporter_last_fetch_timestamp",
+          "expr": "time() - gpon_exporter_last_fetch_timestamp{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
           "legendFormat": "{{ip}}",
           "range": true,
@@ -4015,7 +4015,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(gpon_exporter_fetch_seconds[5m])",
+          "expr": "avg_over_time(gpon_exporter_fetch_seconds{instance=~\"$instance\", ip=~\"$ip\"}[5m])",
           "instant": false,
           "legendFormat": "{{ip}}",
           "range": true,
@@ -4113,7 +4113,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_exporter_fetch_failures_total[15m])",
+          "expr": "rate(gpon_exporter_fetch_failures_total{instance=~\"$instance\", ip=~\"$ip\"}[15m])",
           "instant": false,
           "legendFormat": "{{ip}}",
           "range": true,
