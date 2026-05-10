@@ -3068,9 +3068,9 @@
             "fillOpacity": 10,
             "gradientMode": "none",
             "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "showPoints": "never",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "showPoints": "always",
             "scaleDistribution": {
               "type": "linear"
             },
@@ -3145,7 +3145,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "100 * rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"RetransSegs\"}[15m]) / rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"OutSegs\"}[15m])",
+          "expr": "(100 * rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"RetransSegs\"}[15m]) / rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"OutSegs\"}[15m])) or on() vector(0)",
           "legendFormat": "retrans %",
           "range": true,
           "refId": "A"
