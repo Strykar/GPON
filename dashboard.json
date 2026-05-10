@@ -1121,7 +1121,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_lom{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "Loss of MAC",
+          "legendFormat": "Loss of PLOAM",
           "range": true,
           "refId": "C"
         },
@@ -1145,7 +1145,7 @@
           "editorMode": "code",
           "expr": "gpon_alarm_sd{instance=~\"$instance\", ip=~\"$ip\"}",
           "instant": false,
-          "legendFormat": "Signal Degraded",
+          "legendFormat": "Signal Degrade",
           "range": true,
           "refId": "E"
         },
