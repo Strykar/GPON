@@ -1,35 +1,36 @@
+# Full-stack: exporter + Prometheus + Grafana with the GPON dashboard
+# auto-provisioned. For users who don't already run their own observability
+# infra. Bring up with:
+#
+#   cp .env.example .env   # then fill in ONU_SSH_PASSWORD
+#   docker compose up -d
+#
+# Then open http://localhost:3000 (admin / admin by default, change via
+# GRAFANA_ADMIN_PASSWORD in .env). The GPON dashboard is in the
+# dashboards list on first login.
+#
+# If you ALREADY run Prometheus + Grafana, use docker-compose.exporter-only.yml
+# instead and wire the exporter into your existing scrape config.
+
 services:
   gpon-exporter:
+    # Pulls the published image. Until v1.1 ships to ghcr.io, this will
+    # fail to pull -- run `docker compose build gpon-exporter` first to
+    # build from local source.
+    image: ghcr.io/strykar/gpon-exporter:latest
     build: .
-    image: gpon-exporter:latest
     container_name: gpon-exporter
     restart: unless-stopped
-    ports:
-      # Bind to 127.0.0.1 on the host so /metrics is reachable from the
-      # host's Prometheus but not from the wider network. Change to
-      # "8114:8114" for an all-interfaces bind.
-      - "127.0.0.1:8114:8114"
-    # Pull the password from the environment, NOT from the command line.
-    # Anything in `command:` ends up in /proc/1/cmdline inside the
-    # container and in `docker inspect` output -- both are readable by
-    # any host process with appropriate caps and any orchestrator audit
-    # trail captures it. The exporter's _parse_device falls back on
-    # ONU_SSH_PASSWORD when the password is omitted from --device, so
-    # the credential never enters argv.
-    #
-    # Subset to named keys (not env_file: .env) so future additions to
-    # .env don't silently leak into the container's environment.
+    # No host port mapping: Prometheus reaches the exporter over the
+    # internal docker network (gpon-exporter:8114). Add `ports:` if you
+    # want to scrape from outside this stack.
+    expose:
+      - "8114"
     environment:
       - ONU_SSH_PASSWORD
       - ONU_USER
       - ONU_HOST
       - ONU_PORT
-    # bind-address 0.0.0.0 INSIDE the container so the port mapping
-    # above can reach the listener; the host-side binding controls
-    # actual reachability. --known-hosts '' disables the host-key
-    # persistence file because USER nobody's $HOME is /nonexistent in
-    # this image; without it every fetch would log a permission-denied
-    # warning.
     command: >
       --device ${ONU_USER:-admin}@${ONU_HOST}:${ONU_PORT:-22}
       --webserver-port 8114
@@ -37,3 +38,70 @@ services:
       --known-hosts ''
     mem_limit: 128m
     cpus: 0.5
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: gpon-prometheus
+    restart: unless-stopped
+    # 127.0.0.1 by default so the Prometheus UI isn't exposed on the
+    # network. Switch to "9090:9090" if you want to hit it from another
+    # machine on the LAN.
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./compose/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - gpon-exporter
+
+  # Init container: substitutes the dashboard's ${DS_PROMETHEUS} datasource
+  # placeholder with the literal UID of the provisioned datasource
+  # ("prometheus" -- see compose/grafana/provisioning/datasources/).
+  # Without this, panels render "Datasource ${DS_PROMETHEUS} was not
+  # found" because Grafana doesn't process the dashboard's __inputs
+  # block when provisioning from disk -- only when importing through
+  # the UI.
+  #
+  # Runs once and exits; grafana waits for service_completed_successfully.
+  dashboard-provision:
+    image: alpine:3.21
+    container_name: gpon-dashboard-provision
+    command: >
+      sh -c "sed 's/\$${DS_PROMETHEUS}/prometheus/g'
+      /input/dashboard.json > /output/gpon.json"
+    volumes:
+      - ./dashboard.json:/input/dashboard.json:ro
+      - grafana_dashboards:/output
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: gpon-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - ./compose/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      dashboard-provision:
+        condition: service_completed_successfully
+      prometheus:
+        condition: service_started
+
+volumes:
+  prometheus_data:
+  grafana_dashboards:
+  grafana_data:

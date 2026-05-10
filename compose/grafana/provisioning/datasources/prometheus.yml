@@ -1,0 +1,14 @@
+apiVersion: 1
+
+# Single Prometheus datasource, fixed UID. The dashboard JSON references
+# this UID via the ${DS_PROMETHEUS} placeholder; the dashboard-provision
+# init service in docker-compose.yml substitutes that placeholder with
+# the literal "prometheus" before Grafana reads the dashboard file.
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
