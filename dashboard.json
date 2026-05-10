@@ -3611,7 +3611,7 @@
       "gridPos": {
         "x": 0,
         "y": 135,
-        "w": 6,
+        "w": 4,
         "h": 4
       },
       "id": 126,
@@ -3653,8 +3653,8 @@
       "title": "SFP MAC",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 135
       },
       "datasource": {
@@ -3709,7 +3709,71 @@
         "wideLayout": true
       },
       "pluginVersion": "11.0.0",
-      "description": "LAN-side Ethernet (eth0) MAC of the SFP. The GPON/GEM layers don't carry per-flow MAC addresses -- the OLT identifies this ONU by its GPON serial number, not a MAC. The PON-side virtual interfaces (pon0, eth0.2/3, nas0) all show a placeholder 00:00:00:01:00:02 in /sys/class/net; only eth0 has a real MAC."
+      "description": "Ethernet (eth0) MAC. GPON has no L2 addresses; the OLT identifies ONUs by GPON serial number."
+    },
+    {
+      "id": 153,
+      "type": "stat",
+      "title": "SFP serial",
+      "description": "GPON serial number assigned at manufacture. The OLT uses this to authenticate the ONU.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 135
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "refId": "A",
+          "expr": "gpon_device_info{instance=~\"$instance\"}",
+          "legendFormat": "{{serial_number}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0"
     },
     {
       "datasource": {
