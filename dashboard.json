@@ -3664,7 +3664,11 @@
           "values": false
         },
         "textMode": "value",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "10.2.0",
       "targets": [
@@ -3742,7 +3746,11 @@
           "values": false
         },
         "textMode": "name",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "11.0.0",
       "description": "Ethernet (eth0) MAC. GPON has no L2 addresses; the OLT identifies ONUs by GPON serial number."
@@ -3807,7 +3815,11 @@
           "values": false
         },
         "textMode": "name",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "11.0.0"
     },
@@ -3858,7 +3870,11 @@
           "values": false
         },
         "textMode": "name",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "10.2.0",
       "targets": [
@@ -3924,7 +3940,11 @@
           "values": false
         },
         "textMode": "auto",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "10.2.0",
       "targets": [
@@ -4194,7 +4214,11 @@
           "values": false
         },
         "textMode": "auto",
-        "wideLayout": true
+        "wideLayout": true,
+        "text": {
+          "titleSize": 12,
+          "valueSize": 18
+        }
       },
       "pluginVersion": "10.3.3",
       "targets": [
