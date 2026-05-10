@@ -2930,7 +2930,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_network_receive_packets_total{instance=~\"$instance\",iface!=\"lo\"}[$__rate_interval])",
+          "expr": "rate(gpon_network_receive_packets_total{instance=~\"$instance\",iface!=\"lo\"}[15m])",
           "legendFormat": "{{iface}} - Receive",
           "range": true,
           "refId": "A"
@@ -2941,7 +2941,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "-1 * rate(gpon_network_transmit_packets_total{instance=~\"$instance\",iface!=\"lo\"}[$__rate_interval])",
+          "expr": "-1 * rate(gpon_network_transmit_packets_total{instance=~\"$instance\",iface!=\"lo\"}[15m])",
           "legendFormat": "{{iface}} - Transmit",
           "range": true,
           "refId": "B"
@@ -3232,7 +3232,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "A",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[5m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[15m])",
           "legendFormat": "active opens"
         },
         {
@@ -3243,7 +3243,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "B",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[5m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[15m])",
           "legendFormat": "passive opens"
         },
         {
@@ -3254,7 +3254,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "C",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"AttemptFails\"}[5m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"AttemptFails\"}[15m])",
           "legendFormat": "attempt fails"
         },
         {
@@ -3265,7 +3265,7 @@
           "editorMode": "code",
           "range": true,
           "refId": "D",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\"}[5m])",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\"}[15m])",
           "legendFormat": "estab resets"
         }
       ],
