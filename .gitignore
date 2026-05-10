@@ -28,3 +28,6 @@ build/
 dist/
 *.zip
 *.tar.gz
+
+# Firmware tarballs live on the GitHub Releases page only; do not commit.
+firmware/
