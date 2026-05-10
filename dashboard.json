@@ -80,7 +80,7 @@
       },
       "id": 140,
       "panels": [],
-      "title": "ONU status",
+      "title": "ONU Status",
       "type": "row"
     },
     {
@@ -450,7 +450,7 @@
       },
       "id": 10,
       "panels": [],
-      "title": "Temperature & GPON signal metrics",
+      "title": "Temperature & GPON Signal Metrics",
       "type": "row"
     },
     {
@@ -898,7 +898,7 @@
       },
       "id": 114,
       "panels": [],
-      "title": "GPON counters",
+      "title": "GPON Counters",
       "type": "row"
     },
     {
@@ -3563,7 +3563,7 @@
       },
       "id": 125,
       "panels": [],
-      "title": "Collector & device info",
+      "title": "Collector & Device Info",
       "type": "row"
     },
     {

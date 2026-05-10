@@ -82,7 +82,7 @@ uninformative on a healthy link. Listed for completeness:
 ## Dashboard layout
 
 `dashboard.json` is organised into six rows. Two are collapsed by default
-(Attenuation and Collector & device info) since they're reference / diagnostic
+(Attenuation and Collector & Device Info) since they're reference / diagnostic
 content; the rest are open.
 
 The dashboard's `$instance` and `$ip` template variables filter by scrape
@@ -101,7 +101,7 @@ Static reference content, three side-by-side text panels:
 - **Features**: wavelengths, GPON/EPON line rates, MSA/DDM compliance, ITU-T
   standards, laser-class and RoHS marks.
 
-### ONU status
+### ONU Status
 
 Three stat panels at the top of the dashboard. Designed to answer "is the
 link healthy right now?" at a glance.
@@ -140,7 +140,7 @@ operating inside spec?". Each gauge uses the metric directly with
 - **SoC temperature**: `gpon_temperature_celsius`. Commercial-temp range
   0–70 °C; thresholds at 60 and 80 °C.
 
-### Temperature & GPON signal metrics
+### Temperature & GPON Signal Metrics
 
 The same four optical metrics as the gauges above, but as timeseries to
 show movement over the dashboard window. Filled lines, smooth interpolation,
@@ -153,7 +153,7 @@ are obvious without checking the y-axis.
 - **Bias current**: `gpon_bias_current_amperes`. Climbing bias current
   with flat or falling Tx power is the textbook laser-aging signature.
 
-### GPON counters
+### GPON Counters
 
 All cumulative-counter timeseries with `rate(metric_total[15m])`. The
 counter type and rate-window choices are explained under [query
@@ -184,7 +184,7 @@ conventions](#query-conventions) below.
 - **OMCI messages/sec** (`DS received`, `DS processed`): downstream OMCI
   management message rate. Healthy steady-state is ~10 msg/s.
 
-### Collector & device info (collapsed)
+### Collector & Device Info (collapsed)
 
 Self-metrics about the exporter process, not the SFP. Useful to confirm
 "is the collector working?" before assuming the SFP is the problem.
