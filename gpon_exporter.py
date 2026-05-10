@@ -315,6 +315,24 @@ ALARM_GAUGES = {
     for name, (key, label) in ALARM_KEYS.items()
 }
 
+# Cumulative count of clear -> raised transitions per alarm. Companion to
+# the gauges above. The gauges only reflect state at scrape time, which
+# means any alarm that raised AND cleared between two fetches is invisible
+# (rate(metric[1h]) = 0 forever, dashboard never goes red, see QUIRKS).
+# These counters preserve the raise event for any transition we observed
+# at least once, so a long alarm that we did sample stays visible in 24h
+# history forever after. For events shorter than --interval we still see
+# nothing -- that's a firmware limitation (alarm-history not exposed by
+# diag or omcicli on this firmware).
+ALARM_RAISES = {
+    name: Counter(f'gpon_alarm_{key}_raises',
+                  f'Cumulative {label} clear->raised transitions observed', ['ip'])
+    for name, (key, label) in ALARM_KEYS.items()
+}
+# Per-(alarm_name, ip) last observed gauge value. None == no prior
+# observation, so we don't fire a transition on first contact.
+_ALARM_PREV = {}
+
 # ----- Cumulative counters --------------------------------------------------
 # Device counters are absolute values (e.g. "BWMAP received: 312475"). prometheus_client's
 # Counter API is .inc(delta) only, so we wrap it: parse the absolute, compute the delta
@@ -511,18 +529,34 @@ def handle_alarms(text, ip):
     if not matches:
         # Empty response or "command not found"-style output: leave gauges at
         # their last value rather than fake-clearing every alarm to 0.
+        # Transition tracking also pauses -- we have no fresh observation.
         return
-    # Got at least one parseable line: pre-reset all alarm gauges so a future
-    # firmware that drops one of the lines (say, LOM) can't leave a stale
-    # raised value masking an outage. Positives below overwrite the zero.
-    for gauge in ALARM_GAUGES.values():
-        gauge.labels(ip=ip).set(0)
+    # Build the new state from this scrape. Default every alarm to clear
+    # so a future firmware that drops one of the lines (say, LOM) can't
+    # leave a stale raised value masking an outage. Positives in the
+    # response overwrite the default.
+    new_state = {name: 0 for name in ALARM_KEYS}
     for m in matches:
         alarm_name = m.group(1).strip()
         status = m.group(2).strip().lower()
-        gauge = ALARM_GAUGES.get(alarm_name)
-        if gauge:
-            gauge.labels(ip=ip).set(0 if status == 'clear' else 1)
+        if alarm_name in new_state:
+            new_state[alarm_name] = 0 if status == 'clear' else 1
+    # Apply the new state and increment the raises counter on every clear
+    # -> raised transition we observe. First observation never fires the
+    # counter -- we have no prior to compare against, and crediting an
+    # already-raised alarm as a fresh raise on first contact would phantom
+    # -spike rate(raises_total[15m]) at every exporter restart.
+    for alarm_name, value in new_state.items():
+        ALARM_GAUGES[alarm_name].labels(ip=ip).set(value)
+        # Materialise the labeled Counter at 0 so /metrics shows
+        # gpon_alarm_*_raises_total = 0 from first scrape, instead of
+        # the series only appearing after the first transition fires.
+        # Lets rate(...) return zero correctly during the warm-up window.
+        raises = ALARM_RAISES[alarm_name].labels(ip=ip)
+        prev = _ALARM_PREV.get((alarm_name, ip))
+        if prev == 0 and value == 1:
+            raises.inc()
+        _ALARM_PREV[(alarm_name, ip)] = value
 
 
 def handle_rogue_sd(text, ip):

@@ -425,6 +425,79 @@ def test_alarms_treats_unknown_status_as_raised():
     assert value('gpon_alarm_los') == 0
 
 
+def test_alarm_raises_counter_lifecycle():
+    """ALARM_RAISES Counters track clear -> raised transitions per alarm,
+    so a long alarm we managed to sample at least once stays visible in
+    history forever after, instead of falling off a 1h gauge window. The
+    counter must:
+
+      - Stay at 0 on first observation, even if the alarm is already
+        raised (no prior to compare against; otherwise we'd phantom-spike
+        rate(raises_total[15m]) at every exporter restart).
+      - Increment by 1 on a clear -> raised transition.
+      - NOT increment when the alarm stays raised across multiple scrapes
+        (1 -> 1 is the same alarm, not a new event).
+      - Increment again on a re-raise after a clear (0 -> 1 -> 0 -> 1
+        counts as two events).
+
+    Distinct IP so this test does not pick up _ALARM_PREV state set by
+    other alarm tests in the same module."""
+    handler = next(h for k, _, h in c.PROBES if k == 'alarms')
+    test_ip = '10.0.55.1'
+
+    def gauge(key):
+        return REGISTRY.get_sample_value(f'gpon_alarm_{key}', {'ip': test_ip})
+
+    def raises(key):
+        return REGISTRY.get_sample_value(f'gpon_alarm_{key}_raises_total', {'ip': test_ip})
+
+    def lines(los_status):
+        return (
+            f'Alarm LOS, status: {los_status}\n'
+            'Alarm LOF, status: clear\n'
+            'Alarm LOM, status: clear\n'
+            'Alarm SF, status: clear\n'
+            'Alarm SD, status: clear\n'
+            'Alarm TX Too Long, status: clear\n'
+            'Alarm TX Mismatch, status: clear\n'
+        )
+
+    # First contact with LOS already raised. Counter must stay at 0;
+    # gauge reflects current state.
+    handler(lines('raised'), test_ip)
+    assert gauge('los') == 1
+    assert raises('los') == 0, 'first observation must not credit a raise event'
+
+    # Same response again: stable raised, no new transition.
+    handler(lines('raised'), test_ip)
+    assert raises('los') == 0, 'stable raised state must not increment counter'
+
+    # Alarm clears.
+    handler(lines('clear'), test_ip)
+    assert gauge('los') == 0
+    assert raises('los') == 0, 'clearing must not increment the raises counter'
+
+    # Re-raise: this is the first transition we can credit (we now have
+    # a prior 0 in our state).
+    handler(lines('raised'), test_ip)
+    assert gauge('los') == 1
+    assert raises('los') == 1, 'first observed clear -> raised must increment'
+
+    # Stays raised: no further increments.
+    handler(lines('raised'), test_ip)
+    handler(lines('raised'), test_ip)
+    assert raises('los') == 1
+
+    # Clear, then raise again: second credited transition.
+    handler(lines('clear'), test_ip)
+    handler(lines('raised'), test_ip)
+    assert raises('los') == 2
+
+    # Other alarms must remain at 0 (never transitioned in this test).
+    for key in ('lof', 'lom', 'sf', 'sd', 'tx_too_long', 'tx_mismatch'):
+        assert raises(key) == 0, f'{key}_raises must not be incremented by LOS transitions'
+
+
 def test_handler_tolerates_garbage_input():
     """Every handler must no-op (not raise) on unrecognised input. Lets us keep
     the daemon running across firmware reshuffles instead of crashing on the
