@@ -3589,7 +3589,7 @@
                   "index": 0
                 },
                 "1": {
-                  "text": "UP \u2014 ${__field.labels.mac}",
+                  "text": "UP",
                   "color": "green",
                   "index": 1
                 }
@@ -3640,7 +3640,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_exporter_up{instance=~\"$instance\"} * on(ip) group_left(mac) gpon_mac_info{instance=~\"$instance\"}",
+          "expr": "gpon_exporter_up{instance=~\"$instance\"}",
           "legendFormat": "{{ip}}",
           "range": true,
           "refId": "A"
@@ -3648,6 +3648,69 @@
       ],
       "title": "Collector status",
       "type": "stat"
+    },
+    {
+      "id": 152,
+      "type": "stat",
+      "title": "SFP MAC",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 135
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "gpon_mac_info{instance=~\"$instance\"}",
+          "legendFormat": "{{mac}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0"
     },
     {
       "datasource": {
@@ -3677,9 +3740,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 6,
+        "x": 12,
         "y": 135,
-        "w": 6,
+        "w": 4,
         "h": 4
       },
       "id": 127,
@@ -3743,9 +3806,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 12,
+        "x": 16,
         "y": 135,
-        "w": 6,
+        "w": 4,
         "h": 4
       },
       "id": 128,
@@ -4013,9 +4076,9 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 18,
+        "x": 20,
         "y": 135,
-        "w": 6,
+        "w": 4,
         "h": 4
       },
       "id": 133,
