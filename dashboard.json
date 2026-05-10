@@ -1458,7 +1458,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "bits"
+              "options": "error bits"
             },
             "properties": [
               {
@@ -1473,7 +1473,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "blocks"
+              "options": "error blocks"
             },
             "properties": [
               {
@@ -2092,7 +2092,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "non-idle frames/sec"
+              "options": "non-idle frames"
             },
             "properties": [
               {
