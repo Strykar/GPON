@@ -236,7 +236,7 @@ nat on $sfp_if from any to 192.168.1.1 -> (sfp_if)
 | `--once` | off | Run a single fetch and exit. Exit code = number of devices whose fetch failed (0 = all good, useful for cron). |
 | `--diagnose` | off | Print a verbose probe report and exit. First thing to run when filing a bug. |
 | `--log-level LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
-| `--known-hosts PATH` | `~/.config/gpon-exporter/known_hosts` | File for persisting SSH host-key fingerprints. WARNING is logged on first contact and on key change. Pass `''` to disable persistence (still logs fingerprints). |
+| `--known-hosts PATH` | `~/.config/gpon-exporter/known_hosts` | File for persisting SSH host-key fingerprints. WARNING is logged on first contact (and the fingerprint persisted) and on every subsequent connect that presents a different key (durably, until the file is hand-edited). The connection still proceeds either way -- the policy is descriptive, not enforcing. For real key-change enforcement, swap `_LoggingHostKeyPolicy` for `paramiko.RejectPolicy()` in the source. Pass `''` to disable persistence; first-contact and key-change warnings still log. |
 
 ## `--enable-omci` caveat
 

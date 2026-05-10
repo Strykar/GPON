@@ -102,12 +102,28 @@ as cleartext on a trusted segment.
 The collector ships a `_LoggingHostKeyPolicy` that writes seen
 fingerprints to `~/.config/gpon-exporter/known_hosts` (or wherever
 `--known-hosts` points). Without persistence, every restart logs "first
-contact" because paramiko forgets state. With persistence, a swapped
-key produces a `host key changed` WARNING the next time the daemon
-connects. The policy is descriptive only -- connections always proceed
--- because RejectPolicy on a homelab SFP would be more annoying than
-useful. If you need actual key-change enforcement, swap to
-`paramiko.RejectPolicy()` and pre-populate the file by hand.
+contact" because paramiko forgets state. With persistence:
+
+- **First contact** to a new host: WARNING is logged and the
+  fingerprint is recorded in the store.
+- **Subsequent connect with a different key**: WARNING is logged but
+  the on-disk fingerprint is **not** updated. Every fetch and every
+  daemon restart re-emits the warning until the operator hand-edits
+  (or deletes) the known-hosts file. This is the C1-fix shape -- an
+  earlier version of the code persisted the new fingerprint
+  unconditionally, which silently ratified key swaps after a single
+  warning.
+
+**Honest scope**: the policy is descriptive, not enforcing. Connections
+still proceed in both branches above (we let them through because
+`RejectPolicy` on a homelab SFP would be more annoying than useful), so
+on an active MITM with a swapped key the password is still sent to the
+attacker on every fetch. What the fix gives you is a **durable signal**
+in the journal -- an operator can grep the log and notice. For real
+key-change enforcement, swap `_LoggingHostKeyPolicy` for
+`paramiko.RejectPolicy()` in the source and pre-populate the file by
+hand. A `--strict-host-keys` flag wiring this in is on the
+deferred-improvements list.
 
 ## The diag CLI
 

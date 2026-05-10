@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import re
+import sys
 import time
 
 import paramiko
@@ -64,12 +65,30 @@ class _LoggingHostKeyPolicy(paramiko.MissingHostKeyPolicy):  # pylint: disable=t
         kt, fp = key.get_name(), key.get_fingerprint().hex()
         prev = self._known.get(hostname)
         if prev is None:
+            # First contact: log + persist. This is the ONLY path that
+            # writes to disk -- see the elif branch.
             log.warning('first SSH connect to %s; trusting host key %s %s', hostname, kt, fp)
+            self._known[hostname] = (kt, fp)
+            self._save()
         elif prev != (kt, fp):
+            # Key change: log durably, do NOT persist. The connection
+            # still proceeds (this policy is descriptive, not enforcing
+            # -- a homelab SFP behind RejectPolicy() would be more
+            # annoying than useful), BUT the on-disk fingerprint stays
+            # at the original. Every subsequent fetch (and every daemon
+            # restart loading the file) re-emits this warning until the
+            # operator hand-edits the known-hosts file or removes it.
+            #
+            # This means: signal is durable, but the credential is still
+            # bled to whoever holds the swapped key for as long as the
+            # operator ignores the warning. Use --known-hosts '' to
+            # silence persistence entirely, or swap to RejectPolicy() in
+            # the source for real enforcement.
             log.warning('SSH host key for %s changed: was %s %s, now %s %s',
                         hostname, prev[0], prev[1], kt, fp)
-        self._known[hostname] = (kt, fp)
-        self._save()
+        # Always make the current connection's PKey available to paramiko
+        # for this single SSHClient instance. This does not touch our
+        # persistent _known mapping or the on-disk store.
         client.get_host_keys().add(hostname, kt, key)
 
 
@@ -851,8 +870,31 @@ def explain_exception(e, host):  # pylint: disable=too-many-return-statements
     return f'{name}: {msg}'
 
 
+# Exceptions that mean "credentials or host identity are wrong and
+# retrying with the same parameters will not help, only burn auth attempts
+# at the SFP". Treated as fatal in fetch_all_once so the daemon exits and
+# systemd's StartLimitBurst/IntervalSec guard fires as documented in
+# odi.service.
+_FATAL_FETCH_EXC = (
+    paramiko.AuthenticationException,
+    paramiko.BadHostKeyException,
+)
+
+
 def fetch_all_once():
-    failures = 0
+    """Fetch metrics from every configured device, once.
+
+    Multi-device contract: a fatal credential failure on one device must
+    NOT abort the loop -- subsequent devices still get a fair fetch in
+    the same cycle (their creds may be fine). Fatal failures accumulate
+    and only after the loop completes does the function exit non-zero
+    if any fired.
+
+    Returns the count of TRANSIENT failures (for callers like --once).
+    Raises SystemExit(<fatal_count>) if any device hit a fatal failure.
+    """
+    transient = 0
+    fatal = 0
     for i, host in enumerate(args.hostname):
         start = time.monotonic()
         try:
@@ -860,6 +902,10 @@ def fetch_all_once():
                 fetch_and_update_metrics_via_ssh(
                     host, args.port[i], args.user[i], args.password[i],
                 )
+            except _FATAL_FETCH_EXC:
+                # Don't retry. Re-raise so the outer handler classifies this
+                # as fatal rather than as a transient failure.
+                raise
             except Exception as first_exc:  # pylint: disable=broad-exception-caught
                 # One transient SSH hiccup shouldn't flatline the host for the
                 # whole interval. Sleep briefly and retry once before declaring
@@ -870,20 +916,31 @@ def fetch_all_once():
                 fetch_and_update_metrics_via_ssh(
                     host, args.port[i], args.user[i], args.password[i],
                 )
+        except _FATAL_FETCH_EXC as e:
+            collector_up.labels(ip=host).set(0)
+            collector_fetch_failures.labels(ip=host).inc()
+            collector_fetch_seconds.labels(ip=host).set(time.monotonic() - start)
+            log.error('fatal: %s -- exporter will exit at end of cycle',
+                      explain_exception(e, host))
+            fatal += 1
         except Exception as e:  # pylint: disable=broad-exception-caught
             collector_up.labels(ip=host).set(0)
             collector_fetch_failures.labels(ip=host).inc()
             collector_fetch_seconds.labels(ip=host).set(time.monotonic() - start)
             log.warning('fetch failed for %s after retry: %s',
                         host, explain_exception(e, host))
-            failures += 1
+            transient += 1
         else:
             now = time.time()
             collector_up.labels(ip=host).set(1)
             collector_last_fetch_timestamp.labels(ip=host).set(now)
             collector_fetch_seconds.labels(ip=host).set(time.monotonic() - start)
             log.info('fetch ok for %s in %.2fs', host, time.monotonic() - start)
-    return failures
+    if fatal:
+        log.error('exiting due to %d fatal credential/host-key failure(s); '
+                  'fix and restart the unit', fatal)
+        sys.exit(fatal)
+    return transient
 
 
 def diagnose():

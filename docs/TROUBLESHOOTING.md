@@ -14,7 +14,7 @@ output. Paste the result into a bug report.
 
 | Log line | Likely cause |
 | -------- | ------------ |
-| `auth failed` | Wrong credentials in `--device user:password@host`. Some firmwares lock the account after a few failures; reboot the SFP to clear. |
+| `auth failed` (or `fatal: auth failed ... -- exporter will exit at end of cycle`) | Wrong credentials in `--device user:password@host`. The exporter now exits on auth failure rather than retrying (which would burn auth attempts at the SFP every cycle); systemd's `StartLimitBurst` then trips and stops restarting after 5 attempts in 60s. Fix the credentials and `systemctl restart odi`. Some firmwares lock the account after a few failures; if you've gone past that, reboot the SFP to clear before restarting. |
 | `connection refused` | sshd not running on the SFP. Check `/etc/inetd.conf` or that the boot scripts aren't disabling it. |
 | `connect timed out` | Routing/IP issue. `ping 192.168.1.1` from the host running the collector. |
 | `channel closed by ... mid-fetch` | Another SSH session is holding the slot, or `omci_app` got wedged (see [`--enable-omci` caveat](../README.md#--enable-omci-caveat)). |

@@ -3,8 +3,13 @@ Description=Prometheus exporter for the HSGQ / ODI GPON SFP
 Documentation=https://github.com/Strykar/GPON/
 After=network-online.target
 Wants=network-online.target
-# Crashloop guard: if the daemon fails to stay up 5 times within 60s,
-# stop trying. Avoids hammering the SFP when the credentials are wrong.
+# Crashloop guard. Pairs with the exporter's behaviour of sys.exit-ing
+# on AuthenticationException / BadHostKeyException: a wrong password
+# causes the daemon to exit on the first cycle, systemd restarts it,
+# the daemon exits again, and after 5 such restarts inside 60s systemd
+# stops trying. Without this guard a wrong password would keep
+# hammering the SFP (some firmwares lock the account out after a few
+# failures and need a power-cycle to clear).
 StartLimitBurst=5
 StartLimitIntervalSec=60
 

@@ -88,6 +88,79 @@ def test_fetch_propagates_authentication_error(monkeypatch):
         c.fetch_and_update_metrics_via_ssh('1.2.3.4', 22, 'admin', 'pw')
 
 
+def test_fetch_all_once_exits_on_authentication_failure(monkeypatch):
+    """C2 regression-locker. Previously the retry-once logic caught
+    AuthenticationException via `except Exception` and re-attempted the
+    same bad credentials, doubling the failed-auth rate against the SFP.
+    Combined with --interval 300 this hammered the device 24 times/hour
+    on a wrong password -- exactly the case the systemd StartLimitBurst
+    guard claims to prevent but never could because the daemon never
+    crashed.
+
+    Fix: AuthenticationException is fatal, fetch_all_once exits with a
+    non-zero code, systemd's StartLimit* guard fires as designed."""
+    install_fake(monkeypatch,
+                 fail_on_connect=paramiko.AuthenticationException('bad'))
+    monkeypatch.setattr(c, 'args', _stub_args(['10.0.0.1']))
+    with pytest.raises(SystemExit) as exc:
+        c.fetch_all_once()
+    assert exc.value.code != 0
+
+
+def test_fetch_all_once_exits_on_bad_host_key(monkeypatch):
+    """BadHostKeyException is also fatal -- replaying against the SFP
+    doesn't help, and after the C1 fix a key change isn't auto-trusted.
+    Defensive: nothing in the codebase populates client.get_host_keys()
+    before fetch today, so this is unreachable in practice. The fatal
+    classification is future-proofing in case a load_system_host_keys()
+    ever appears."""
+    class FakeKey:
+        def get_base64(self):
+            return 'AAAA'
+    bhke = paramiko.BadHostKeyException('h', FakeKey(), FakeKey())
+    install_fake(monkeypatch, fail_on_connect=bhke)
+    monkeypatch.setattr(c, 'args', _stub_args(['10.0.0.1']))
+    with pytest.raises(SystemExit) as exc:
+        c.fetch_all_once()
+    assert exc.value.code != 0
+
+
+def test_fetch_all_once_completes_remaining_devices_then_exits(monkeypatch):
+    """Multi-device contract: device with bad credentials must NOT cause
+    later devices in the cycle to be skipped. Collect fatal failures
+    across all devices, exit only after the loop. This way device 2
+    still gets a fair fetch and a valid up=1 if its creds are good."""
+    # Two devices, only the first one's connect raises auth failure.
+    # We need a fake that distinguishes by hostname.
+    class SelectiveFake(FakeClient):
+        def connect(self, hostname, **kwargs):
+            if hostname == '10.0.0.1':
+                raise paramiko.AuthenticationException('bad')
+            self.connected = True
+
+    monkeypatch.setattr(c.paramiko, 'SSHClient', lambda: SelectiveFake())
+    monkeypatch.setattr(c, 'args', _stub_args(['10.0.0.1', '10.0.0.2']))
+    with pytest.raises(SystemExit) as exc:
+        c.fetch_all_once()
+    assert exc.value.code != 0
+    # Device 2 must have been attempted (its up label series exists)
+    assert REGISTRY.get_sample_value('gpon_exporter_up', {'ip': '10.0.0.2'}) is not None
+
+
+def _stub_args(hostnames):
+    """Minimal args stub for fetch_all_once -- it reads .hostname/.port/
+    .user/.password as parallel arrays plus .known_hosts for the policy."""
+    class A:
+        pass
+    a = A()
+    a.hostname    = hostnames
+    a.port        = [22] * len(hostnames)
+    a.user        = ['admin'] * len(hostnames)
+    a.password    = ['pw'] * len(hostnames)
+    a.known_hosts = ''  # disables persistence; the FakeClient ignores it anyway
+    return a
+
+
 def test_fetch_updates_gauges_from_canned_output(monkeypatch):
     """End-to-end: feed real diag output for ds-phy through the pipeline twice
     (baseline-then-real, so the Counter advances by the absolute as a delta
