@@ -18,58 +18,41 @@ become reachable that we currently can't expose.
    the one-liner prints nothing.
 4. Each command is read-only. No `set`/`apply`/`add`/`del`/`reset`.
 
-## What to share back
+## What's safe to share, what isn't
 
-For each command, paste either:
+The probes split into two groups:
 
-- the output (means the verb works on your firmware -- useful), or
-- the literal text "no output" (means the verb is broken or missing on your
-  firmware).
+- **PII-free probes** -- output is counter values, uptime, auth counts,
+  status codes. Nothing identifying. Safe to paste back as-is.
+- **PII-bearing probes** -- output may contain your SFP's GPON serial,
+  your subscriber LOID, your ISP's OLT vendor / equipment ID, your
+  fiber's optical power readings, distance to OLT, or in the worst case
+  a PLOAM credential. The one-shot loop below **does not run these**.
+  They live as separate one-liners in the
+  [PII-bearing probes](#pii-bearing-probes-redact-before-sharing) section
+  so you can run them deliberately and redact before sharing.
 
-Plus the firmware version: `cat /etc/version`.
+For both groups, please also share your firmware version: `cat /etc/version`.
 
-## The one-liners
+## PII-free probes
 
-### Sanity check (these work on V1.0-220923; if they print nothing, omcicli is unreachable on your firmware too)
-
-```sh
-omcicli get authuptime 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-omcicli get loidauth   2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-```
-
-### Verbs that should work but are broken on V1.0-220923
-
-```sh
-omcicli get sn     2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-omcicli get loid   2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-omcicli get cflag  2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-```
-
-### Verbs that don't exist on V1.0-220923
+Output here is safe to paste verbatim. Counter values, status codes,
+uptime, auth counts -- nothing that identifies your line, your gear, or
+your ISP.
 
 ```sh
-omcicli get onuid  2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
-omcicli get state  2>&1 | grep -Ev '^(TableId \[|Usage:|$)'
+omcicli get authuptime 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # PON auth uptime in seconds
+omcicli get loidauth   2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # auth status + counts
+omcicli get cflag      2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # config flag value
+omcicli get onuid      2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # OLT-assigned ONU ID
+omcicli get state      2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # registration state code
+omcicli mib getcurr 312 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)' # FEC PMHD: corrected/uncorrectable
+omcicli mib getcurr 321 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)' # GEM-port PMHD
+omcicli mib getcurr 322 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)' # MAC bridge port PMHD
+omcicli mib getcurr  24 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)' # Eth PMHD-3
 ```
 
-### OMCI ME reads (broken on V1.0-220923; firmware fix here would be huge)
-
-ME numbers are from ITU-T G.988. If any of these print real data, that
-firmware can expose proper OMCI metrics (distance to OLT, optical signal
-level, FEC PMHD, GEM-port PMHD) that aren't accessible today.
-
-```sh
-omcicli mib getcurr  46 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # OLT-G  -- OLT vendor/equipment ID
-omcicli mib getcurr 256 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # ONU-G  -- ONU vendor/serial/version
-omcicli mib getcurr 257 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # ONU2-G -- equipment ID, OMCC version
-omcicli mib getcurr 263 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # ANI-G  -- PON Tx/Rx, distance, signal level
-omcicli mib getcurr 312 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # FEC PMHD
-omcicli mib getcurr 321 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # GEM-port PMHD
-omcicli mib getcurr 322 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # MAC bridge port PMHD
-omcicli mib getcurr  24 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'  # Eth PMHD-3
-```
-
-### One-shot version (run all 15 in one paste, with section labels)
+### One-shot version (PII-free, paste once and share output verbatim)
 
 If you'd rather paste once and walk away:
 
@@ -77,15 +60,9 @@ If you'd rather paste once and walk away:
 for spec in \
   'auth|get authuptime' \
   'loid_auth|get loidauth' \
-  'sn|get sn' \
-  'loid|get loid' \
   'cflag|get cflag' \
   'onuid|get onuid' \
   'state|get state' \
-  'olt-g|mib getcurr 46 0' \
-  'onu-g|mib getcurr 256 0' \
-  'onu2-g|mib getcurr 257 0' \
-  'ani-g|mib getcurr 263 0' \
   'fec-pmhd|mib getcurr 312 0' \
   'gem-pmhd|mib getcurr 321 0' \
   'macbr-pmhd|mib getcurr 322 0' \
@@ -101,5 +78,39 @@ echo "--- end of report ---"
 ```
 
 If a command appears stuck for more than ~15 seconds, press Ctrl-C once
-and report which command was running. (The script will abort; just paste
-what was printed.)
+and report which command was running.
+
+## PII-bearing probes (redact before sharing)
+
+Run these one at a time, look at the output, and decide whether to
+share. Most testers won't need to run all of them; the broken/missing
+**verb name** alone is the signal we need (we only need real data if a
+fix is found).
+
+If you do choose to share output:
+
+- **GPON serial number** (e.g. `DSNW282D5510`) -- replace the trailing
+  hex ID with `XXXXXXXX`, keep the vendor prefix.
+- **LOID** (subscriber identifier) -- replace with `<redacted-loid>`.
+- **OLT vendor / equipment ID** -- vendor name is usually fine; redact
+  the equipment ID if you're not sure.
+- **Distance to OLT** -- round to the nearest 100 m.
+- **Optical Tx/Rx levels** -- these are unique-ish per fiber install;
+  share the *units and field names* but redact the values.
+- **Anything resembling a password, hex token, or base64 string** in
+  ANI-G or ONU-G output -- redact entirely. ONU-G can carry the PLOAM
+  challenge response on a working-firmware read; that's a credential.
+
+```sh
+omcicli get sn            2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # serial number
+omcicli get loid          2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # subscriber LOID
+omcicli mib getcurr  46 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # OLT-G: OLT vendor/equipment ID
+omcicli mib getcurr 256 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # ONU-G: vendor/serial/version (POSSIBLE PLOAM cred)
+omcicli mib getcurr 257 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # ONU2-G: equipment ID, OMCC version
+omcicli mib getcurr 263 0 2>&1 | grep -Ev '^(TableId \[|Usage:|$)'   # ANI-G: distance to OLT, Tx/Rx, signal level
+```
+
+The shape of the data (which fields exist, what types they are) is what
+the project needs; the actual values aren't. A line like
+`MeName: ANI-G\n  vendor_id: <redacted>\n  distance_m: <redacted>\n  ...`
+is just as useful as the unredacted version.
