@@ -1,4 +1,52 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "Prometheus datasource scraping the gpon_exporter target",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -18,7 +66,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 26,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -48,7 +96,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "",
           "gridPos": {
@@ -75,7 +123,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "",
           "gridPos": {
@@ -102,7 +150,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "",
           "gridPos": {
@@ -146,7 +194,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "0 - 3.7 V, expects close to constant 3.3 V\nInternal calibration: +/-3%",
       "fieldConfig": {
@@ -219,7 +267,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_voltage_volts {instance=~\"$instance\", ip=~\"$ip\"}",
@@ -235,7 +283,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -298,7 +346,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "100 * (gpon_memory_total_bytes{instance=~\"$instance\"} - gpon_memory_free_bytes{instance=~\"$instance\"} - gpon_memory_buffers_bytes{instance=~\"$instance\"} - gpon_memory_cached_bytes{instance=~\"$instance\"}) / gpon_memory_total_bytes{instance=~\"$instance\"}",
@@ -315,7 +363,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -378,7 +426,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "100 * (1 - sum(rate(gpon_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[5m])))",
@@ -408,7 +456,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Internal calibration error is +/-3C\nCommercial: 0 - 70C\nIndustrial: -40 - 85C",
       "fieldConfig": {
@@ -497,7 +545,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_temperature_celsius",
@@ -513,7 +561,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -609,7 +657,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_tx_power_dbm",
@@ -626,7 +674,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Internal calibration: +/-10%",
       "fieldConfig": {
@@ -714,7 +762,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_bias_current_amperes",
@@ -730,7 +778,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -826,7 +874,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_rx_power_dbm",
@@ -856,7 +904,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "1=O1 Initial, 5=O5 Operation (steady state), 7=O7 Emergency Stop",
       "fieldConfig": {
@@ -948,7 +996,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_onu_state",
@@ -964,7 +1012,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "1 = raised, 0 = clear. Severity ranking, worst first: LOS = fibre disconnected (catastrophic); LOF = loss of frame sync (severe); LOM = loss of PLOAM message (severe); SF = signal fail, BER above threshold (severe); SD = signal degrade, BER drift (warning); TX Too Long, TX Mismatch = configuration warnings.",
       "fieldConfig": {
@@ -1034,7 +1082,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_los",
@@ -1046,7 +1094,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_lof",
@@ -1058,7 +1106,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_lom",
@@ -1070,7 +1118,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_sf",
@@ -1082,7 +1130,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_sd",
@@ -1094,7 +1142,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_tx_too_long",
@@ -1106,7 +1154,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_alarm_tx_mismatch",
@@ -1122,7 +1170,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Rate of GPON downstream codewords (~248-byte data blocks with Reed-Solomon parity) that arrived with bit errors but were repaired by Forward Error Correction. A non-zero rate is normal on long fibre runs and just means FEC is quietly doing its job before bit slips reach upper layers.",
       "fieldConfig": {
@@ -1221,7 +1269,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_fec_correct_codewords_total[15m])",
@@ -1237,7 +1285,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Rate of codewords with more bit errors than FEC parity can repair. These errors leak into Ethernet frames, which then fail FCS and get dropped. Non-zero here means the link is degraded enough to cause user-visible packet loss.",
       "fieldConfig": {
@@ -1336,7 +1384,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_fec_uncorrectable_codewords_total[15m])",
@@ -1352,7 +1400,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Bit Interleaved Parity (BIP-8) is a per-byte checksum over the GPON Transmission Convergence frame. A non-zero rate means raw downstream bit errors regardless of whether FEC could correct them. Tracks closely with physical-layer link condition.",
       "fieldConfig": {
@@ -1466,7 +1514,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_bip_error_bits_total[15m])",
@@ -1478,7 +1526,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_bip_error_blocks_total[15m])",
@@ -1494,7 +1542,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Downstream Ethernet frame rate. Unicast and multicast are normal user traffic. FCS errors (Frame Check Sequence, the CRC32 at the end of every Ethernet frame) should stay at zero -- non-zero means corrupted frames reaching the upper layers.",
       "fieldConfig": {
@@ -1627,7 +1675,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_ethernet_unicast_total[15m])",
@@ -1639,7 +1687,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_ethernet_multicast_total[15m])",
@@ -1651,7 +1699,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_ethernet_fcs_errors_total[15m])",
@@ -1667,7 +1715,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Bandwidth Map (BWMAP) traffic. The OLT broadcasts a BWMAP downstream every 125 us to allocate upstream time slots to each ONU. Received rate should be steady; CRC errors should stay at zero.",
       "fieldConfig": {
@@ -1785,7 +1833,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_bwmap_received_total[15m])",
@@ -1797,7 +1845,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_bwmap_crc_errors_total[15m])",
@@ -1813,7 +1861,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Physical Layer Operations, Administration and Maintenance (PLOAM) messages. Out-of-band management traffic between OLT and ONU. Steady low rate is normal; spikes accompany ranging, key exchange, or configuration churn.",
       "fieldConfig": {
@@ -1946,7 +1994,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_ploam_received_total[15m])",
@@ -1958,7 +2006,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_ploam_crc_errors_total[15m])",
@@ -1970,7 +2018,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_us_ploam_transmitted_total[15m])",
@@ -1986,7 +2034,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Rate of GPON Encapsulation Method (GEM) frames carrying user payload (non-idle frames). GEM is the transport layer that wraps Ethernet for GPON. The matching idle counter saturates at 2^32-1 on this firmware so we chart non-idle alone as the link-utilisation indicator.",
       "fieldConfig": {
@@ -2085,7 +2133,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_gem_non_idle_total[15m])",
@@ -2101,7 +2149,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "OMCI (ONU Management and Control Interface, ITU-T G.988) admin traffic. Low steady rate is normal; spikes accompany config changes, MIB updates, or OLT-driven re-provisioning. Upstream OMCI counters are flat on this firmware so they are not charted.",
       "fieldConfig": {
@@ -2215,7 +2263,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_omci_received_total[15m])",
@@ -2227,7 +2275,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_ds_omci_processed_total[15m])",
@@ -2243,7 +2291,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Combined SN-request and ranging-request events the SFP has received in the last hour. Zero in healthy steady-state operation. Any non-zero reading means the OLT is re-ranging or re-discovering this ONU: link flap, OLT restart, or scheduled provisioning.",
       "fieldConfig": {
@@ -2297,7 +2345,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "sum(increase(gpon_activation_sn_requests_total{instance=~\"$instance\"}[1h])) + sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\"}[1h]))",
@@ -2313,7 +2361,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Optical Tx power at the SFP, in dBm. Factory operating range -10 to +8 dBm. Internal calibration: +/-2 dB. Green inside the safe band, orange at the 1 dB edge, red outside factory range. Tx light is at 1310 nm (upstream).",
       "fieldConfig": {
@@ -2385,7 +2433,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_tx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
@@ -2401,7 +2449,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "Optical Rx power at the SFP, in dBm. Factory operating range -28 to -8 dBm. Internal calibration: +/-2 dB. Drift toward red is the cue to call your ISP. Rx light is at 1490 nm (downstream).",
       "fieldConfig": {
@@ -2473,7 +2521,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_rx_power_dbm{instance=~\"$instance\", ip=~\"$ip\"}",
@@ -2489,7 +2537,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "description": "SFP SoC temperature in degrees Celsius. Internal calibration: +/-3 C. Commercial-temp parts run 0-70 C, industrial -40 to +85 C. Green inside the safe band, orange approaching the upper limit, red above 70 C (laser damage risk on commercial parts).",
       "fieldConfig": {
@@ -2553,7 +2601,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_temperature_celsius{instance=~\"$instance\", ip=~\"$ip\"}",
@@ -2569,7 +2617,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2643,7 +2691,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_receive_bytes_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2654,7 +2702,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_transmit_bytes_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2667,7 +2715,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2741,7 +2789,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_receive_errors_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2752,7 +2800,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_receive_dropped_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2763,7 +2811,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_transmit_errors_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2774,7 +2822,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_transmit_dropped_total{instance=~\"$instance\",iface=\"eth0\"}[15m])",
@@ -2800,7 +2848,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2880,7 +2928,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_network_receive_packets_total{instance=~\"$instance\",iface!=\"lo\"}[$__rate_interval])",
@@ -2891,7 +2939,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "-1 * rate(gpon_network_transmit_packets_total{instance=~\"$instance\",iface!=\"lo\"}[$__rate_interval])",
@@ -2904,7 +2952,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -2993,7 +3041,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "100 * gpon_conntrack_entries{instance=~\"$instance\"} / gpon_conntrack_max{instance=~\"$instance\"}",
@@ -3006,7 +3054,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3094,7 +3142,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "100 * rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"RetransSegs\"}[15m]) / rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"OutSegs\"}[15m])",
@@ -3107,7 +3155,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3186,7 +3234,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_tcp_current_established{instance=~\"$instance\"}",
@@ -3197,7 +3245,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"tw\"}",
@@ -3208,7 +3256,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[5m])",
@@ -3219,7 +3267,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[5m])",
@@ -3232,7 +3280,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3311,7 +3359,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"NoPorts\"}[15m])",
@@ -3322,7 +3370,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"InErrors\"}[15m])",
@@ -3333,7 +3381,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Udp\",name=\"RcvbufErrors\"}[15m])",
@@ -3346,7 +3394,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "G3vCyHW4k"
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -3395,7 +3443,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
           "expr": "gpon_igmp_groups{instance=~\"$instance\",iface!=\"lo\"}",
@@ -3418,7 +3466,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "1 = last fetch succeeded, 0 = failed",
           "fieldConfig": {
@@ -3484,7 +3532,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "gpon_exporter_up",
@@ -3500,7 +3548,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "Firmware version reported by /etc/version on the SFP",
           "fieldConfig": {
@@ -3551,7 +3599,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "gpon_firmware_info",
@@ -3567,7 +3615,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "Wall time since the last successful fetch for this device",
           "fieldConfig": {
@@ -3617,7 +3665,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "time() - gpon_exporter_last_fetch_timestamp",
@@ -3633,7 +3681,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "Wall-clock seconds for the last fetch. Climbing values usually mean a degraded SFP or link.",
           "fieldConfig": {
@@ -3715,7 +3763,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "avg_over_time(gpon_exporter_fetch_seconds[5m])",
@@ -3731,7 +3779,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "15m rate of fetch failures. Sustained non-zero means the collector cannot keep up with the device.",
           "fieldConfig": {
@@ -3813,7 +3861,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "rate(gpon_exporter_fetch_failures_total[15m])",
@@ -3829,7 +3877,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "description": "How long the collector process has been running since its last restart. Pair with the \"Last fetch\" panel: long uptime + recent fetch = healthy; short uptime = crash/deploy; long uptime + stale last-fetch = daemon stuck.",
           "fieldConfig": {
@@ -3887,7 +3935,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "time() - process_start_time_seconds{job=\"gpon_exporter\", instance=~\"$instance\"}",
@@ -3903,7 +3951,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "fieldConfig": {
             "defaults": {
@@ -3982,7 +4030,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "100 * rate(process_cpu_seconds_total{job=\"gpon_exporter\", instance=~\"$instance\"}[5m])",
@@ -3995,7 +4043,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "fieldConfig": {
             "defaults": {
@@ -4074,7 +4122,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "process_resident_memory_bytes{job=\"gpon_exporter\", instance=~\"$instance\"} / (1024*1024)",
@@ -4096,13 +4144,13 @@
           },
           "datasource": {
             "type": "prometheus",
-            "uid": "G3vCyHW4k"
+            "uid": "${DS_PROMETHEUS}"
           },
           "targets": [
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "G3vCyHW4k"
+                "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
               "expr": "gpon_mac_info{instance=~\"$instance\"}",
@@ -4164,7 +4212,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "G3vCyHW4k"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(gpon_voltage_volts, instance)",
         "hide": 0,
@@ -4191,7 +4239,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "G3vCyHW4k"
+          "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(gpon_voltage_volts, ip)",
         "hide": 0,
