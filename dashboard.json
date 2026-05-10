@@ -2371,7 +2371,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "refId": "B",
-          "legendFormat": "Ranging request",
+          "legendFormat": "Ranging Request",
           "expr": "sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
           "editorMode": "code",
           "range": true,
