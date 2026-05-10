@@ -2359,7 +2359,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "refId": "A",
-          "legendFormat": "SN",
+          "legendFormat": "Serial Number",
           "expr": "sum(increase(gpon_activation_sn_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
           "editorMode": "code",
           "range": true,
