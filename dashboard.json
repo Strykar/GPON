@@ -3586,7 +3586,31 @@
           "unit": "none",
           "unitScale": true
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "${__field.labels.mac}",
+                        "color": "blue",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "x": 0,
@@ -3620,7 +3644,7 @@
           "editorMode": "code",
           "expr": "gpon_exporter_up",
           "instant": false,
-          "legendFormat": "UP: {{ip}}",
+          "legendFormat": "{{ip}}",
           "range": true,
           "refId": "A"
         },
@@ -3631,7 +3655,7 @@
           },
           "editorMode": "code",
           "expr": "gpon_mac_info{instance=~\"$instance\"}",
-          "legendFormat": "MAC: {{mac}}",
+          "legendFormat": "MAC",
           "range": true,
           "refId": "B"
         }
