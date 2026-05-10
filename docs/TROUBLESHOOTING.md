@@ -18,7 +18,7 @@ output. Paste the result into a bug report.
 | `connection refused` | sshd not running on the SFP. Check `/etc/inetd.conf` or that the boot scripts aren't disabling it. |
 | `connect timed out` | Routing/IP issue. `ping 192.168.1.1` from the host running the collector. |
 | `channel closed by ... mid-fetch` | Another SSH session is holding the slot, or `omci_app` got wedged (see [`--enable-omci` caveat](../README.md#--enable-omci-caveat)). |
-| All metrics suddenly 0 | Either the SFP rebooted (counters reset) or the OLT just deauthenticated you (check `gpon_onu_state`; should be `5`). |
+| Gauges suddenly 0 (alarms, optical readings, ONU state, sockets) | The OLT just deauthenticated you, or the parser regex missed on a new firmware build. Check `gpon_onu_state` (should be `5`). For Counter-typed metrics (`gpon_*_total`), an SFP reboot rebases via `_AbsoluteCounter` rather than visibly dropping to 0 -- they stay at their last value and the next fetch's increment is from the post-reboot baseline. |
 | `gpon_exporter_up == 0` for a host | Last fetch failed; check the collector log for the explanation line. |
 | `/metrics` reachable but no `gpon_*` lines | Collector is running but no fetch has completed yet. Wait one `--interval`. |
 | Some gauges frozen at one value while others update | Likely a parser regression on a new firmware. Run `--diagnose` and file an issue with the output. |

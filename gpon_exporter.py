@@ -110,7 +110,22 @@ parser.add_argument('--device', action='append', required=True,
                          'See examples below.')
 parser.add_argument('--webserver-port', type=int, default=8114,
                     help='Port for the Prometheus metrics web server')
-parser.add_argument('--bind-address', default='127.0.0.1',
+def _validate_bind_address(s):
+    """Round-trip through socket.getaddrinfo so empty / typo / non-resolvable
+    bind-address values fail at parse time with a useful error, instead of
+    deferring the gaierror to start_http_server time."""
+    import socket  # pylint: disable=import-outside-toplevel
+    try:
+        socket.getaddrinfo(s, None)
+    except (socket.gaierror, TypeError) as e:
+        raise argparse.ArgumentTypeError(
+            f"--bind-address {s!r} does not resolve: {e}. "
+            "Use a literal IP (127.0.0.1, 0.0.0.0) or a hostname your system can resolve."
+        ) from e
+    return s
+
+
+parser.add_argument('--bind-address', default='127.0.0.1', type=_validate_bind_address,
                     help='Address to bind the metrics HTTP server on. Defaults to 127.0.0.1 '
                          '(loopback only) since the typical deployment has Prometheus '
                          'scraping the same host. Use 0.0.0.0 to expose to the network '
@@ -518,7 +533,10 @@ def handle_rogue_sd(text, ip):
 
 
 def handle_authuptime(text, ip):
-    m = re.search(r'PON duration time\s*:\s*([\d.]+)', text)
+    # Tighter than [\d.]+ -- accept exactly one optional decimal point so
+    # "1.2.3 seconds" doesn't match the leading "1.2.3" and crash float().
+    # Real input from V1.0-220923: "PON duration time : 138387.000000 seconds".
+    m = re.search(r'PON duration time\s*:\s*(\d+(?:\.\d+)?)', text)
     if m:
         pon_uptime_gauge.labels(ip=ip).set(float(m.group(1)))
 
@@ -603,14 +621,18 @@ def handle_proc_meminfo(text, ip):
 
 def handle_proc_uptime(text, ip):
     # /proc/uptime: "<uptime_s> <idle_s>" -- two floats separated by space.
-    m = re.match(r'\s*([\d.]+)', text)
+    # Bound the decimal so "1.2.3 ..." can't crash float() (defensive --
+    # the kernel format is fixed, but parser robustness is cheap).
+    m = re.match(r'\s*(\d+(?:\.\d+)?)', text)
     if m:
         sfp_uptime.labels(ip=ip).set(float(m.group(1)))
 
 
 # eth0 is the LAN-side physical interface; br0 inherits the same MAC. PON-side
 # interfaces (pon0, nas0, eth0.{2,3}) carry placeholder MACs and are skipped.
-_MAC_RE = re.compile(r'^([0-9a-fA-F:]{17})\s*$')
+# Strict 6-octet MAC shape -- the previous [0-9a-fA-F:]{17} also accepted
+# things like ":::::::::::::::::" or 17 hex chars with no colons.
+_MAC_RE = re.compile(r'^((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})\s*$')
 
 def handle_eth0_mac(text, ip):
     m = _MAC_RE.search(text.strip())

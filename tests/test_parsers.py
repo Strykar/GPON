@@ -337,6 +337,51 @@ def test_rogue_sd_preserves_counters_on_unparseable_input():
     assert rv('gpon_rogue_sd_too_long_total') == 9
 
 
+def test_authuptime_rejects_multi_dot_garbage():
+    """M1 regression-locker. Previous regex [\\d.]+ was greedy across dots
+    so '1.2.3 seconds' matched '1.2.3' and float() raised ValueError,
+    which propagated up and short-circuited the rest of the fetch."""
+    handler = next(h for k, _, h in c.PROBES if k == 'authuptime')
+    handler('PON duration time : 1.2.3 seconds', IP)  # must not raise
+    handler('PON duration time : ..... seconds', IP)  # must not raise either
+
+
+def test_proc_uptime_rejects_multi_dot_garbage():
+    """M1: same fix on /proc/uptime parser. Defensive -- the kernel
+    format is fixed -- but cheap."""
+    handler = next(h for k, _, h in c.PROBES if k == 'proc_uptime')
+    handler('1.2.3 0.0', IP)  # must not raise
+
+
+def test_eth0_mac_rejects_obvious_garbage():
+    """M2 regression-locker. Previous regex [0-9a-fA-F:]{17} matched
+    ':::::::::::::::::' and 17 hex chars with no colons. Strict 6-octet
+    shape rejects both -- the gpon_mac_info series stays at whatever it
+    was last set to (or unset entirely if never set)."""
+    handler = next(h for k, _, h in c.PROBES if k == 'eth0_mac')
+    test_ip = '10.0.96.1'
+    handler(':::::::::::::::::\n', test_ip)  # 17 colons, no hex
+    handler('00000000000000000\n', test_ip)  # 17 hex, no colons
+    handler('zzzzz\n', test_ip)
+    handler('', test_ip)
+    # No mac_info series should have materialised for test_ip
+    assert REGISTRY.get_sample_value('gpon_mac_info', {'ip': test_ip, 'mac': ':::::::::::::::::'}) is None
+    # Real MAC still works
+    handler('aa:bb:cc:dd:ee:ff\n', test_ip)
+    assert REGISTRY.get_sample_value('gpon_mac_info', {'ip': test_ip, 'mac': 'aa:bb:cc:dd:ee:ff'}) == 1.0
+
+
+def test_bind_address_validator_rejects_garbage_at_parse_time():
+    """M4: validator catches typos and unresolvable hostnames during
+    argparse instead of letting start_http_server raise gaierror later."""
+    import argparse as _argparse
+    with __import__('pytest').raises(_argparse.ArgumentTypeError):
+        c._validate_bind_address('this.host.absolutely.does.not.exist.example')
+    # Real values pass through unchanged
+    assert c._validate_bind_address('127.0.0.1') == '127.0.0.1'
+    assert c._validate_bind_address('0.0.0.0') == '0.0.0.0'
+
+
 def test_handler_tolerates_garbage_input():
     """Every handler must no-op (not raise) on unrecognised input. Lets us keep
     the daemon running across firmware reshuffles instead of crashing on the
