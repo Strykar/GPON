@@ -3190,7 +3190,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "cps"
         },
         "overrides": []
       },
@@ -3211,7 +3211,7 @@
       "pluginVersion": "11.0.0",
       "type": "timeseries",
       "id": 174,
-      "title": "TCP connections",
+      "title": "TCP connection events",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -3225,32 +3225,10 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_tcp_current_established{instance=~\"$instance\"}",
-          "legendFormat": "established",
           "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "gpon_tcp_sockets{instance=~\"$instance\",state=\"tw\"}",
-          "legendFormat": "time-wait",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
+          "refId": "A",
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"ActiveOpens\"}[5m])",
-          "legendFormat": "active opens/sec",
-          "range": true,
-          "refId": "C"
+          "legendFormat": "active opens"
         },
         {
           "datasource": {
@@ -3258,10 +3236,32 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[5m])",
-          "legendFormat": "passive opens/sec",
           "range": true,
-          "refId": "D"
+          "refId": "B",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"PassiveOpens\"}[5m])",
+          "legendFormat": "passive opens"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "refId": "C",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"AttemptFails\"}[5m])",
+          "legendFormat": "attempt fails"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "range": true,
+          "refId": "D",
+          "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\"}[5m])",
+          "legendFormat": "estab resets"
         }
       ]
     },
