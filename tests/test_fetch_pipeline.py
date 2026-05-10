@@ -45,6 +45,14 @@ class FakeClient:
             raise self.fail_on_connect
         self.connected = True
 
+    def get_transport(self):
+        # Stand-in for paramiko.Transport so the watchdog code can call
+        # set_keepalive without blowing up.
+        class _FakeTransport:
+            def set_keepalive(self, *_a, **_kw):
+                pass
+        return _FakeTransport()
+
     def exec_command(self, cmd, timeout=None):  # pylint: disable=unused-argument
         self.calls.append(cmd)
         if self.fail_on_exec is not None:
@@ -78,6 +86,61 @@ def test_fetch_closes_client_even_on_exec_failure(monkeypatch):
     fake = install_fake(monkeypatch, fail_on_exec=boom)
     with pytest.raises(paramiko.SSHException):
         c.fetch_and_update_metrics_via_ssh('1.2.3.4', 22, 'admin', 'pw')
+    assert fake.closed
+
+
+def test_fetch_watchdog_aborts_a_hung_exec(monkeypatch):
+    """H2 regression-locker. Without the per-fetch wall-clock guard, a
+    remote that trickles output (or a wedged omci_app daemon that
+    accepts the channel but never responds) leaves stdout.read()
+    blocking forever -- paramiko's per-recv inactivity timeout doesn't
+    bound total read time.
+
+    The watchdog Timer must fire, close the client, and unblock the
+    read. The fake here polls self.closed in a tight loop so a real
+    threading.Timer.close() can interrupt it (real paramiko gets the
+    interrupt for free because the underlying socket is closed under
+    its blocking read; we have to fake that signal explicitly)."""
+    import time as _time
+
+    class HangingFakeClient(FakeClient):
+        def close(self):
+            self.closed = True
+
+        def exec_command(self, cmd, timeout=None):
+            self.calls.append(cmd)
+            # Poll for the watchdog's close() call instead of plain
+            # time.sleep -- a sleep wouldn't be interrupted from another
+            # thread and the test would hang.
+            deadline = _time.monotonic() + 30
+            while not self.closed and _time.monotonic() < deadline:
+                _time.sleep(0.05)
+            if self.closed:
+                # Mimic what real paramiko does when the socket is closed
+                # under a blocking read.
+                raise OSError(9, 'Bad file descriptor')
+            return None, FakeStdout(''), None
+
+    fake = HangingFakeClient()
+    monkeypatch.setattr(c.paramiko, 'SSHClient', lambda: fake)
+    # Tight 1 s budget so we don't sit through the production 30 s floor
+    monkeypatch.setattr(c, '_fetch_budget', lambda: 1)
+    t0 = _time.monotonic()
+    with pytest.raises((paramiko.SSHException, EOFError, OSError)):
+        c.fetch_and_update_metrics_via_ssh('1.2.3.4', 22, 'admin', 'pw')
+    elapsed = _time.monotonic() - t0
+    assert elapsed < 5, f'watchdog did not fire fast enough: elapsed={elapsed}s'
+    assert fake.closed, 'watchdog should have closed the client'
+
+
+def test_fetch_watchdog_does_not_fire_on_normal_completion(monkeypatch):
+    """The happy path: a fast fetch must complete cleanly, the timer is
+    cancelled, no spurious wall-clock-exceeded error."""
+    fake = install_fake(monkeypatch)
+    # Generous budget so the (instant) fake fetch is well within it
+    monkeypatch.setattr(c, '_fetch_budget', lambda: 10)
+    c.fetch_and_update_metrics_via_ssh('1.2.3.4', 22, 'admin', 'pw')
+    assert fake.connected
     assert fake.closed
 
 

@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 
 import paramiko
@@ -844,12 +845,49 @@ DIAG_PROBES = [
 PROBES = []
 
 
+def _fetch_budget():
+    """Wall-clock budget for one fetch_and_update_metrics_via_ssh call.
+    Half the configured interval, with a 30s floor so a legitimately
+    slow first fetch on --once doesn't trip the watchdog. Exposed as a
+    function so tests can monkeypatch a small value without changing
+    the production default."""
+    interval = getattr(args, 'interval', 300) if args else 300
+    return max(30, interval // 2)
+
+
 def fetch_and_update_metrics_via_ssh(hostname, port, username, password):
     client = paramiko.SSHClient()
+    # Watchdog: paramiko's exec_command(timeout=10) is per-recv inactivity,
+    # not a total read budget. A remote that trickles a byte every 9s
+    # would let stdout.read() block forever. The wedge condition documented
+    # in QUIRKS (omcicli stalls forever on broken verbs) is the realistic
+    # version of this. Bound the entire fetch with a Timer that closes the
+    # client from another thread; the in-progress paramiko read then
+    # raises rather than hanging, and the outer fetch_all_once treats it
+    # as a transient failure.
+    fired = threading.Event()
+
+    def _watchdog():
+        fired.set()
+        try:
+            client.close()
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass  # nothing useful to do if close() itself fails
+
+    timer = threading.Timer(_fetch_budget(), _watchdog)
+    timer.daemon = True
+    timer.start()
     try:
         client.set_missing_host_key_policy(_LoggingHostKeyPolicy(args.known_hosts or None))
         client.connect(hostname, port=port, username=username, password=password,
                        look_for_keys=False, allow_agent=False, timeout=10)
+        # SSH-level keepalive every 15s. Catches the link-dead-but-TCP-half-open
+        # case quickly: if the SFP stops responding entirely, paramiko's read
+        # raises within ~30s instead of waiting on TCP keep-alive timeouts
+        # (which are minutes by default).
+        transport = client.get_transport()
+        if transport is not None:
+            transport.set_keepalive(15)
         # One SSH connection per fetch, one channel per probe. We tried stitching
         # every probe into a single exec_command, but on this firmware diag leaves
         # something attached after returning, so the next omcicli in the same
@@ -860,8 +898,17 @@ def fetch_and_update_metrics_via_ssh(hostname, port, username, password):
             text = stdout.read().decode(errors='replace')
             handler(text, hostname)
     finally:
+        timer.cancel()
         # Close even if connect() raised; paramiko handles the never-opened case.
         client.close()
+    if fired.is_set():
+        # Loop completed but the watchdog still fired during it -- some
+        # probe(s) may have been cut short. Surface as a transient failure
+        # rather than silently returning partial data.
+        raise paramiko.SSHException(
+            f'fetch wall-clock budget ({_fetch_budget()}s) exceeded; '
+            'some probes may have been truncated'
+        )
 
 
 def explain_exception(e, host):  # pylint: disable=too-many-return-statements
