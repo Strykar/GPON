@@ -45,6 +45,14 @@ ProtectKernelModules=true
 ProtectKernelLogs=true
 ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6
+# If a future change extends the exporter to talk over a Unix socket
+# (local IPC, /metrics over UDS instead of TCP), AF_INET/AF_INET6 only
+# will return EAFNOSUPPORT inside the sandbox -- the failure points at
+# code, not policy. Add AF_UNIX here when that happens. Same trap if
+# we ever uncomment SystemCallFilter or MemoryDenyWriteExecute below
+# and add bpf() / perf_event_open() / io_uring / JIT-using deps: the
+# filter denies them by default. Check this unit file first when an
+# inexplicable runtime error appears after a code change.
 RestrictNamespaces=true
 LockPersonality=true
 RestrictRealtime=true
