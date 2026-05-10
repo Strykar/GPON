@@ -850,7 +850,7 @@
       },
       "id": 114,
       "panels": [],
-      "title": "GPON counters (diag-only)",
+      "title": "GPON counters",
       "type": "row"
     },
     {
@@ -2725,7 +2725,7 @@
           "pluginVersion": "11.0.0"
         }
       ],
-      "title": "Collector health",
+      "title": "Collector & device info",
       "type": "row"
     },
     {
@@ -2840,7 +2840,7 @@
           "refId": "A"
         }
       ],
-      "title": "Downstream GEM data frame rate",
+      "title": "Downstream GEM frames/sec",
       "type": "timeseries"
     },
     {
@@ -2982,7 +2982,7 @@
           "refId": "B"
         }
       ],
-      "title": "OMCI message rate",
+      "title": "OMCI messages/sec",
       "type": "timeseries"
     },
     {

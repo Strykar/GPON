@@ -253,7 +253,7 @@ behaviour is firmware-dependent. If you turn it on and the log shows
 
 `dashboard.json` is organised into six rows (Attenuation, ONU status,
 Laser/CPU/RAM/Voltage/Temperature, Temperature & GPON signal metrics, GPON
-counters, Collector health). Per-row and per-panel documentation, plus
+counters, Collector & device info). Per-row and per-panel documentation, plus
 the rationale for each PromQL query shape, lives in
 [docs/COVERAGE.md](docs/COVERAGE.md).
 

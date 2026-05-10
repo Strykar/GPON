@@ -38,9 +38,9 @@ and not duplicated here.
 | `diag gpon show counter global ds-phy` | `gpon_ds_bip_error_bits_total`, `_blocks_total`, `gpon_ds_fec_correct_codewords_total`, `gpon_ds_fec_uncorrectable_codewords_total` | Downstream BIP errors/sec, FEC corrected codewords/sec, FEC uncorrectable codewords/sec |
 | `diag gpon show counter global ds-plm` | `gpon_ds_ploam_received_total`, `_crc_errors_total` | PLOAM messages/sec (DS series) |
 | `diag gpon show counter global ds-bw` | `gpon_ds_bwmap_received_total`, `_crc_errors_total` | Downstream BWMAP/sec |
-| `diag gpon show counter global ds-omci` | `gpon_ds_omci_received_total`, `_processed_total` | OMCI message rate |
+| `diag gpon show counter global ds-omci` | `gpon_ds_omci_received_total`, `_processed_total` | OMCI messages/sec |
 | `diag gpon show counter global ds-eth` | `gpon_ds_ethernet_unicast_total`, `_multicast_total`, `_fcs_errors_total` | Downstream Ethernet frames/sec |
-| `diag gpon show counter global ds-gem` | `gpon_ds_gem_non_idle_total` | Downstream GEM data frame rate |
+| `diag gpon show counter global ds-gem` | `gpon_ds_gem_non_idle_total` | Downstream GEM frames/sec |
 | `diag gpon show counter global us-plm` | `gpon_us_ploam_transmitted_total` | PLOAM messages/sec (US transmitted series) |
 
 ## Metrics from `omcicli`
@@ -82,7 +82,7 @@ uninformative on a healthy link. Listed for completeness:
 ## Dashboard layout
 
 `dashboard.json` is organised into six rows. Two are collapsed by default
-(Attenuation and Collector health) since they're reference / diagnostic
+(Attenuation and Collector & device info) since they're reference / diagnostic
 content; the rest are open.
 
 The dashboard's `$instance` and `$ip` template variables filter by scrape
@@ -153,7 +153,7 @@ are obvious without checking the y-axis.
 - **Bias current**: `gpon_bias_current_amperes`. Climbing bias current
   with flat or falling Tx power is the textbook laser-aging signature.
 
-### GPON counters (diag-only)
+### GPON counters
 
 All cumulative-counter timeseries with `rate(metric_total[15m])`. The
 counter type and rate-window choices are explained under [query
@@ -177,14 +177,14 @@ conventions](#query-conventions) below.
 - **PLOAM messages/sec** (`DS received`, `DS CRC errors`, `US transmitted`):
   PLOAM (Physical Layer Operation, Administration and Maintenance) message
   counts per direction. CRC errors on secondary y-axis.
-- **Downstream GEM data frame rate** (`non-idle frames`):
+- **Downstream GEM frames/sec** (`non-idle frames`):
   `gpon_ds_gem_non_idle` rate. The idle counter saturates at 2^32-1 so the
   dashboard charts only the non-idle side as the link-utilisation indicator
   (see [QUIRKS](QUIRKS.md)).
-- **OMCI message rate** (`DS received`, `DS processed`): downstream OMCI
+- **OMCI messages/sec** (`DS received`, `DS processed`): downstream OMCI
   management message rate. Healthy steady-state is ~10 msg/s.
 
-### Collector health (collapsed)
+### Collector & device info (collapsed)
 
 Self-metrics about the exporter process, not the SFP. Useful to confirm
 "is the collector working?" before assuming the SFP is the problem.
