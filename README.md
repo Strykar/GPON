@@ -27,7 +27,20 @@ is the alternative.
 
 ## How to use
 
-The shortest path from "fresh repo" to "metrics in Grafana":
+If you don't already run Prometheus + Grafana, the fastest path is the
+bundled compose stack:
+
+```sh
+cp .env.example .env             # fill in ONU_SSH_PASSWORD
+docker compose up -d --build     # --build only needed pre-1.1
+open http://localhost:3000       # admin / admin, dashboard already loaded
+```
+
+That brings up exporter + Prometheus + Grafana with the dashboard
+auto-provisioned. See [Docker / Podman](#docker--podman) for the
+exporter-only variant when you already have observability infra.
+
+The manual path (no docker), shortest version:
 
 ```sh
 # 1. install runtime deps -- pick ONE of these (see Requirements below)
@@ -176,19 +189,39 @@ owned by the dynamic UID, persisted across restarts and reboots).
 
 ### Docker / Podman
 
-The same `Dockerfile` and `docker-compose.yml` work under both runtimes.
-Locally tested with podman 5.8.2 + podman-compose; the docker path is the
-same syntax.
+Two compose files ship with the repo:
+
+| File | Brings up | Pick this if |
+| --- | --- | --- |
+| `docker-compose.yml` | Exporter + Prometheus + Grafana (dashboard auto-provisioned) | You don't already run observability infra. Open `http://localhost:3000` after `up`. |
+| `docker-compose.exporter-only.yml` | Just the exporter | You already have Prometheus + Grafana and want to wire this exporter into them. |
+
+Both pull `ghcr.io/strykar/gpon-exporter:latest` and fall back to building
+from local source if the image isn't present. Locally tested with podman
+5.8.2 + podman-compose; the docker path is the same syntax.
+
+**Full stack (recommended for first-time users):**
 
 ```sh
-cp .env.example .env             # then fill in credentials in .env
-podman compose up -d             # podman + podman-compose
-# or
+cp .env.example .env             # fill in ONU_SSH_PASSWORD (and optionally GRAFANA_ADMIN_PASSWORD)
 docker compose up -d             # docker engine + the compose plugin
+# or: podman compose up -d
+open http://localhost:3000       # admin / admin on first login (Grafana forces a change)
 ```
 
-The host port is bound to `127.0.0.1:8114` by default. Switch to `8114:8114`
-in the compose file if Prometheus runs on another machine.
+The Grafana dashboard appears in the dashboards list on first login,
+already pointed at the bundled Prometheus. Both UIs bind to
+`127.0.0.1` only -- edit the `ports:` lines in `docker-compose.yml` if
+you want LAN access.
+
+**Exporter-only (existing Prometheus / Grafana):**
+
+```sh
+cp .env.example .env             # fill in ONU_SSH_PASSWORD
+docker compose -f docker-compose.exporter-only.yml up -d
+# /metrics serves on http://127.0.0.1:8114/metrics
+# Add it to your existing prometheus.yml, then import dashboard.json into Grafana.
+```
 
 The container's `HEALTHCHECK` (pulls `/metrics`, marks unhealthy on
 failure) only takes effect when the image is built with the docker
@@ -198,9 +231,29 @@ with `podman build --format docker -t gpon-exporter:latest .` first, then
 bring the stack up. Without that flag the exporter still runs fine, you
 just don't get healthy/unhealthy status in `podman ps`.
 
-**The compose file is single-device.** Multiple SFPs need either
+**Both compose files are single-device.** Multiple SFPs need either
 `docker compose -p` (or `podman compose -p`) per device with separate
 `.env` files, or a manual multi-service rewrite.
+
+**Podman + systemd**: skip `podman compose` and convert the stack to
+Quadlets with [`podlet`](https://github.com/containers/podlet) -- it's
+the Podman-team-blessed converter:
+
+```sh
+mkdir -p ~/.config/containers/systemd
+podlet --file ~/.config/containers/systemd compose --install docker-compose.yml
+systemctl --user daemon-reload
+systemctl --user start gpon-exporter prometheus grafana
+```
+
+Use `/etc/containers/systemd/` and the system-wide systemctl for a
+root install. Re-run `podlet` after any change to the compose file --
+the conversion is mechanical, so don't hand-edit the generated units.
+
+> Pre-1.1 note: `ghcr.io/strykar/gpon-exporter` is published on tag.
+> Until v1.1.0 ships, run `docker compose up -d --build` (or
+> `docker compose build` first) to build from local source. After 1.1
+> publishes, plain `docker compose up -d` pulls the image directly.
 
 ### Proxmox (LXC)
 
@@ -316,7 +369,13 @@ docstring lints disabled.
 
 `.github/workflows/ci.yml` runs `pylint` and `pytest` on every push and
 pull request, then performs a multi-arch (amd64 + arm64) Docker build smoke
-test. No image is pushed; that's deliberate.
+test. No image is pushed from this workflow; that's deliberate.
+
+`.github/workflows/release.yml` fires only on `v*.*.*` tag push. It
+builds the multi-arch image, pushes to `ghcr.io/strykar/gpon-exporter`
+with `:VERSION`, `:MAJOR.MINOR`, and `:latest` tags, and attaches SLSA
+build provenance + SBOM. Manual reruns possible via workflow_dispatch
+without recutting the tag.
 
 ## Contributing
 
