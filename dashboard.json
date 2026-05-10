@@ -3581,6 +3581,7 @@
           },
           "mappings": [
             {
+              "type": "value",
               "options": {
                 "0": {
                   "text": "DOWN",
@@ -3588,12 +3589,11 @@
                   "index": 0
                 },
                 "1": {
-                  "text": "UP",
+                  "text": "UP \u2014 ${__field.labels.mac}",
                   "color": "green",
                   "index": 1
                 }
-              },
-              "type": "value"
+              }
             }
           ],
           "thresholds": {
@@ -3608,31 +3608,7 @@
           "unit": "none",
           "unitScale": true
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "1": {
-                        "text": "${__field.labels.mac}",
-                        "color": "blue",
-                        "index": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "x": 0,
@@ -3653,7 +3629,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "10.2.0",
@@ -3664,22 +3640,10 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "gpon_exporter_up",
-          "instant": false,
+          "expr": "gpon_exporter_up{instance=~\"$instance\"} * on(ip) group_left(mac) gpon_mac_info{instance=~\"$instance\"}",
           "legendFormat": "{{ip}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "gpon_mac_info{instance=~\"$instance\"}",
-          "legendFormat": "MAC",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Collector status",
