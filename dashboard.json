@@ -2324,7 +2324,8 @@
             ]
           },
           "unit": "short",
-          "unitScale": true
+          "unitScale": true,
+          "decimals": 0
         },
         "overrides": []
       },
@@ -2357,12 +2358,24 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
+          "refId": "A",
+          "legendFormat": "SN",
+          "expr": "sum(increase(gpon_activation_sn_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
           "editorMode": "code",
-          "expr": "sum by(ip)(increase(gpon_activation_sn_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h])) + sum by(ip)(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
-          "instant": false,
-          "legendFormat": "events",
           "range": true,
-          "refId": "A"
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "refId": "B",
+          "legendFormat": "Ranging",
+          "expr": "sum(increase(gpon_activation_ranging_requests_total{instance=~\"$instance\", ip=~\"$ip\"}[1h]))",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
         }
       ],
       "title": "Activation events (last 1h)",
@@ -2461,7 +2474,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Optical Rx power at the SFP, in dBm. Factory operating range -28 to -8 dBm. Internal calibration: +/-2 dB. Drift toward red is the cue to call your ISP. Rx light is at 1490 nm (downstream).",
+      "description": "Optical Rx power at the SFP, in dBm. Factory operating range -28 to -8 dBm. Internal calibration: +/-2 dB. Drift toward red is the cue to call your ISP. Rx light is at 1490 nm (downstream). Per-unit calibration drift inside the +/-2 dB window is normal -- compare against an external optical power meter and add the delta to your panel query (e.g. `gpon_rx_power_dbm + 2`) for a corrected display.",
       "fieldConfig": {
         "defaults": {
           "color": {
