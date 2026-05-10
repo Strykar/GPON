@@ -173,9 +173,19 @@ deferred-improvements list.
   unless you've verified it actually works on the target firmware.
 - **`omcicli get onuid` and `omcicli get state` do not exist on this
   firmware.** They print the `omcicli get` usage page.
-- **`omcicli mib getcurr` and `omcicli mib get` ignore their argument and
-  always dump the full MIB table list** (a TOC, not the contents).
-  Useless for our purposes.
+- **`omcicli mib getcurr`, `omcicli mib get`, and `omcicli mib dump`
+  ignore their argument and always dump the full MIB table list** (a
+  TOC, not the contents). Useless for our purposes. Verified across
+  numeric class IDs, table names, comma syntax, and explicit `entityId`
+  -- every form falls through to the directory listing. `omcicli mib
+  getattr` is the only verb that doesn't fall through; it instead
+  returns an empty error and no data. **This closes the OMCI route for
+  Performance Monitoring (PM) accumulations on this firmware** -- the
+  PM tables (`FecPmhd`, `EthPmHistoryData`, `Anig`, etc.) exist in the
+  TOC but their contents are unreachable via `omcicli`. The exporter's
+  `gpon_alarm_*_raises_total` Counters compensate by tracking gauge
+  transitions in-process; sub-fetch-interval events remain firmware-
+  invisible (see TROUBLESHOOTING).
 - **A hung `omcicli` client does NOT wedge `omci_app`**, despite the
   surface-level similarity to the diag-then-omcicli wedge. If a verb
   doesn't return data on this firmware, the omcicli command sits forever
@@ -205,6 +215,15 @@ The single most consequential quirk we found.
   case isn't a probe-order flip -- it's stopping `omcicli` from running
   back-to-back-after-`diag` at all, e.g. by separating omci and diag
   fetches into different cycles.
+- **Separate-session probing is also empirically safe.** Targeted
+  discovery probes -- ~10 `omcicli mib` invocations across two
+  back-to-back interactive SSH sessions while the production
+  exporter's diag-driven fetches were still running on a 5-minute
+  cycle -- did not wedge `omci_app`. Production fetches landed cleanly
+  in 3.82-3.84s before, during, and after the probe sweep. Strengthens
+  the "same-session, immediate" hypothesis above; it doesn't license
+  enabling `omcicli` probes back-to-back in the loop, because the same
+  session is the failure mode.
 - The collector mitigates this by:
   - Defaulting `--enable-omci` to **off**. With it off, only `diag`
     probes run and the wedge is impossible.

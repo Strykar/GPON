@@ -22,6 +22,7 @@ output. Paste the result into a bug report.
 | `gpon_exporter_up == 0` for a host | Last fetch failed; check the collector log for the explanation line. |
 | `/metrics` reachable but no `gpon_*` lines | Collector is running but no fetch has completed yet. Wait one `--interval`. |
 | Some gauges frozen at one value while others update | Likely a parser regression on a new firmware. Run `--diagnose` and file an issue with the output. |
+| Alarms panel stays green during a known fibre flap or unplug | Expected gauge behaviour, not a bug. The alarm gauges read SFP state at scrape time (every `--interval`, default 5 min). An event shorter than the fetch interval lands between two scrapes and is invisible to the gauges. The Activation events panel will catch it (counter-based, accumulates regardless of when we sample). For events longer than `--interval` that we sampled at least once, the "Alarm raises (24h)" companion panel preserves the transition in `gpon_alarm_*_raises_total` indefinitely. Sub-fetch-interval events are unrecoverable on this firmware -- `diag gpon get alarm-history` doesn't exist, and `omcicli mib getcurr` returns the directory listing instead of PM data on at least M110 V1.0-220923. See QUIRKS for the firmware probe results. |
 | `gpon_exporter_fetch_seconds` consistently above ~10s | The SFP is heavily loaded or the link is degraded. |
 | Dashboard rate panels show identical step patterns | Prometheus scrape interval is much longer than `--interval`, or rate window is too short. The dashboard uses 15-minute windows by default; raise to `[30m]` for longer collector intervals. |
 
@@ -31,8 +32,12 @@ output. Paste the result into a bug report.
 - `rate(gpon_exporter_fetch_failures_total[15m]) > 0.1`: flapping
   connection. (Real Counter, so `rate()` is the right function here.)
 - `max(gpon_alarm_los, gpon_alarm_lof, gpon_alarm_lom, gpon_alarm_sf, gpon_alarm_sd) == 1`:
-  any line-side alarm. Use `max()` rather than `or`, since PromQL `or` is
-  set-union on labels, not boolean.
+  any line-side alarm currently raised. Use `max()` rather than `or`,
+  since PromQL `or` is set-union on labels, not boolean.
+- `sum(rate(gpon_alarm_los_raises_total[1h])) > 0`: at least one LOS
+  transition observed in the last hour. Catches medium-duration flaps
+  (anything we sampled at least once); won't fire for sub-fetch-interval
+  blips. Substitute the alarm key for `los` to alert on other rises.
 - `rate(gpon_ds_fec_uncorrectable_codewords_total[15m]) > 0`: FEC can't
   recover everything; expect bit errors upstream.
 - `gpon_onu_state != 5`: ONU not in Operation state. `0` means the parser
