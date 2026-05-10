@@ -2835,7 +2835,7 @@
     {
       "id": 170,
       "type": "row",
-      "title": "Ethernet / L3/4 counters",
+      "title": "Ethernet / L3 / L4 Counters",
       "collapsed": false,
       "gridPos": {
         "h": 1,
