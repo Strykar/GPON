@@ -382,6 +382,49 @@ def test_bind_address_validator_rejects_garbage_at_parse_time():
     assert c._validate_bind_address('0.0.0.0') == '0.0.0.0'
 
 
+def test_absolute_counter_handles_reset_without_back_decrement():
+    """L1 -- the _AbsoluteCounter design choice that prev > absolute is
+    a "reset, rebase" rather than a "back-decrement". A real Counter
+    can never go down; if the device's absolute reading drops (SFP
+    reboot, counter wrap on a small-width counter), we record the new
+    baseline and resume incrementing from there. Counter.inc() is never
+    called on the down step.
+
+    Sequence: 0 -> 100 (real delta of 100) -> 50 (treated as reset,
+    counter not incremented; new baseline 50) -> 60 (real delta of
+    10 from the 50 baseline). End state: counter at 110."""
+    handler = next(h for k, _, h in c.PROBES if k == 'rogue_sd')
+    rogue_ip = '10.0.99.4'
+    def rv(name):
+        return REGISTRY.get_sample_value(name, {'ip': rogue_ip})
+    handler('SD too long count: 0\nSD mismatch count: 0',  rogue_ip)  # baseline
+    handler('SD too long count: 100\nSD mismatch count: 0', rogue_ip)  # +100
+    handler('SD too long count: 50\nSD mismatch count: 0',  rogue_ip)  # reset (+0)
+    handler('SD too long count: 60\nSD mismatch count: 0',  rogue_ip)  # +10
+    assert rv('gpon_rogue_sd_too_long_total') == 110, \
+        '_AbsoluteCounter must rebase on reset without back-decrementing'
+
+
+def test_alarms_treats_unknown_status_as_raised():
+    """L3 -- handle_alarms is permissive: anything that's not literally
+    "clear" is treated as raised. This is deliberate because we have
+    not observed a raised alarm to know the exact wording for "raised"
+    on this firmware (per QUIRKS). Lock the contract so a future
+    refactor doesn't tighten the comparison and quietly miss real alarms."""
+    handler = next(h for k, _, h in c.PROBES if k == 'alarms')
+    handler(
+        'Alarm LOS, status: clear\n'
+        'Alarm LOF, status: clear\n'
+        'Alarm LOM, status: clear\n'
+        'Alarm SF, status: detected\n'      # not "clear", not "raised"
+        'Alarm SD, status: clear\n'
+        'Alarm TX Too Long, status: clear\n'
+        'Alarm TX Mismatch, status: clear\n', IP)
+    assert value('gpon_alarm_sf') == 1, \
+        'unknown non-clear status must be treated as raised, not ignored'
+    assert value('gpon_alarm_los') == 0
+
+
 def test_handler_tolerates_garbage_input():
     """Every handler must no-op (not raise) on unrecognised input. Lets us keep
     the daemon running across firmware reshuffles instead of crashing on the
