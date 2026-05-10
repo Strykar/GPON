@@ -113,3 +113,44 @@ def test_every_dashboard_metric_is_exposed():
             'Either update the panel query or restore the metric in '
             'gpon_exporter.py.'
         )
+
+
+# Values that survive redistribution. `$__all` is Grafana's include-all
+# sentinel for multi-select; '' / None covers single-select with no
+# pinned default. Anything else (a port, a hostname, an IP) is a
+# deployment artefact that will leave panels blank for everyone whose
+# live label_values() response does not include that exact string.
+_PORTABLE_TEMPLATE_DEFAULTS = {'$__all', '', None}
+
+
+def test_query_template_variables_have_no_deployment_specific_defaults():
+    """Saved current.value on a query-typed template variable that
+    pins to a specific deployment string (port, IP, hostname) breaks
+    the dashboard for everyone else: when their Grafana imports the
+    JSON and the saved value is not in their live label_values()
+    response, every panel filtering instance=~"$instance" (or similar)
+    returns zero series. We hit this between v1.0 and v1.1: the
+    instance default was 'localhost:8111' from a pre-migration
+    deployment, and every filtered panel went blank after the port
+    moved to 8114.
+
+    Custom-typed variables (fixed option lists) are exempt -- their
+    defaults are intentional, not derived from a live query."""
+    with open(DASHBOARD_PATH, encoding='utf-8') as f:
+        d = json.load(f)
+    bad = []
+    for v in d.get('templating', {}).get('list', []):
+        if v.get('type') != 'query':
+            continue
+        value = v.get('current', {}).get('value')
+        if value not in _PORTABLE_TEMPLATE_DEFAULTS:
+            bad.append((v.get('name'), value))
+    if bad:
+        raise AssertionError(
+            'Query-typed template variables have a deployment-specific '
+            'value pinned in current.value. They will silently blank '
+            'panels for anyone whose label_values() response does not '
+            'include that exact string. Set to "$__all" (multi-select '
+            'with includeAll) or "" (single-select) before merging:\n'
+            + '\n'.join(f'  - {name}: current.value={value!r}' for name, value in bad)
+        )

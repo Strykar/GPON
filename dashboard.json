@@ -4390,8 +4390,8 @@
       {
         "current": {
           "selected": false,
-          "text": "localhost:8111",
-          "value": "localhost:8111"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",
@@ -4399,8 +4399,8 @@
         },
         "definition": "label_values(gpon_voltage_volts, instance)",
         "hide": 0,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "instance",
         "options": [],
         "query": {
@@ -4412,7 +4412,8 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query"
+        "type": "query",
+        "allValue": null
       },
       {
         "current": {
