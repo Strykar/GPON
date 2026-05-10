@@ -2685,7 +2685,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 83
+        "y": 104
       },
       "targets": [
         {
@@ -2783,7 +2783,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 83
+        "y": 104
       },
       "targets": [
         {
@@ -2906,7 +2906,7 @@
             "min"
           ],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -2919,7 +2919,7 @@
       "id": 171,
       "title": "Network traffic by packets",
       "gridPos": {
-        "h": 8,
+        "h": 12,
         "w": 24,
         "x": 0,
         "y": 92
@@ -3013,10 +3013,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max",
-            "min"
+            "lastNotNull"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -3035,7 +3032,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 100
+        "y": 112
       },
       "targets": [
         {
@@ -3114,10 +3111,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max",
-            "min"
+            "lastNotNull"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -3136,7 +3130,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 100
+        "y": 112
       },
       "targets": [
         {
@@ -3206,10 +3200,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max",
-            "min"
+            "lastNotNull"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -3228,7 +3219,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 108
+        "y": 120
       },
       "targets": [
         {
@@ -3331,10 +3322,7 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "lastNotNull",
-            "max",
-            "min"
+            "lastNotNull"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -3353,7 +3341,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 108
+        "y": 120
       },
       "targets": [
         {
@@ -3427,17 +3415,17 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "auto"
       },
       "pluginVersion": "11.0.0",
       "type": "stat",
       "id": 176,
       "title": "IGMP groups joined",
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 128
       },
       "targets": [
         {
@@ -3459,7 +3447,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 120
+        "y": 134
       },
       "id": 125,
       "panels": [
@@ -3524,7 +3512,7 @@
               "fields": "",
               "values": false
             },
-            "textMode": "auto",
+            "textMode": "value_and_name",
             "wideLayout": true
           },
           "pluginVersion": "10.2.0",
@@ -3537,9 +3525,20 @@
               "editorMode": "code",
               "expr": "gpon_exporter_up",
               "instant": false,
-              "legendFormat": "{{ip}}",
+              "legendFormat": "UP: {{ip}}",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "gpon_mac_info{instance=~\"$instance\"}",
+              "legendFormat": "MAC: {{mac}}",
+              "range": true,
+              "refId": "B"
             }
           ],
           "title": "Collector status",
@@ -4092,7 +4091,7 @@
                   }
                 ]
               },
-              "unit": "mbytes"
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -4125,74 +4124,12 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "process_resident_memory_bytes{job=\"gpon_exporter\", instance=~\"$instance\"} / (1024*1024)",
+              "expr": "process_resident_memory_bytes{job=\"gpon_exporter\", instance=~\"$instance\"}",
               "legendFormat": "{{instance}}",
               "range": true,
               "refId": "A"
             }
           ]
-        },
-        {
-          "id": 152,
-          "title": "SFP MAC",
-          "type": "stat",
-          "gridPos": {
-            "h": 4,
-            "w": 24,
-            "x": 0,
-            "y": 80
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "editorMode": "code",
-              "expr": "gpon_mac_info{instance=~\"$instance\"}",
-              "legendFormat": "{{mac}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
-          "options": {
-            "colorMode": "none",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "name"
-          },
-          "pluginVersion": "11.0.0"
         }
       ],
       "title": "Collector & device info",
