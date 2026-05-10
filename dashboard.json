@@ -3407,10 +3407,9 @@
         "overrides": []
       },
       "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true,
-        "valueMode": "color",
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -3418,13 +3417,12 @@
           "fields": "",
           "values": false
         },
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "sizing": "auto"
+        "sizing": "auto",
+        "minVizHeight": 75,
+        "minVizWidth": 75
       },
       "pluginVersion": "11.0.0",
-      "type": "bargauge",
+      "type": "gauge",
       "id": 176,
       "title": "IGMP groups joined",
       "gridPos": {
