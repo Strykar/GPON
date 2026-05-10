@@ -98,6 +98,11 @@ python3 -m venv .venv
 # then run with .venv/bin/python3 instead of plain python3
 ```
 
+The repo also ships a `pyproject.toml`, so `pip install .` (inside a
+venv) installs `gpon-exporter` as a console-script entry point on
+PATH. The `requirements.txt` path remains supported for users who
+prefer running the script directly.
+
 ### Standalone
 
 ```sh
@@ -128,6 +133,14 @@ python3 gpon_exporter.py \
 The metrics endpoint binds to `127.0.0.1` by default (loopback only). If
 your Prometheus runs on a different host, pass `--bind-address 0.0.0.0`.
 Inside Docker/Podman the compose file already does this for you.
+
+If you bind to `0.0.0.0` on a network reachable from outside your
+trusted segment, put auth and TLS in front of `/metrics` -- the
+exporter doesn't do either. Caddy or nginx as a reverse proxy with
+basic auth is the lowest-effort path; oauth2-proxy or
+prometheus-with-scrape-tls suit larger setups. The metrics themselves
+contain device-fingerprinting information (firmware version, MAC,
+serial, optical levels) that's worth not publishing.
 
 ### systemd
 

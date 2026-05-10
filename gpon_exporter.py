@@ -168,7 +168,12 @@ def _parse_device(s):
     from urllib.parse import urlparse, unquote  # pylint: disable=import-outside-toplevel
     parsed = urlparse(f'ssh://{s}')
     if not parsed.hostname or not parsed.username:
-        parser.error(f"invalid --device {s!r}; expected user:password@host[:port]")
+        parser.error(
+            f"invalid --device {s!r}; expected user:password@host[:port]. "
+            "If your password contains @, :, /, or other URL-special characters, "
+            "percent-encode them (e.g. p@ss -> p%40ss) or set ONU_SSH_PASSWORD "
+            "instead and omit the password from --device."
+        )
     pw = unquote(parsed.password) if parsed.password else os.environ.get('ONU_SSH_PASSWORD')
     if not pw:
         parser.error(f"no password for --device {s!r}; either embed it (user:password@...) "
@@ -1012,6 +1017,27 @@ def fetch_all_once():
     return transient
 
 
+_DIAG_REDACT_RE = re.compile(
+    r'(\w*(?:PASSWORD|PASSWD|SECRET|KEY|TOKEN))(\s*[=:]\s*)(\S+)',
+    re.IGNORECASE,
+)
+
+
+def _scrub(line):
+    """Replace anything that looks like a secret-bearing field in
+    diagnose output. Catches *_PASSWORD=..., *_PASSWD=..., *_KEY=...,
+    *_SECRET=..., *_TOKEN=... and the colon-separated variants. The
+    field name is preserved so the user can see WHICH field was
+    redacted in their bug report.
+
+    Defence in depth: the standard probe set today doesn't read files
+    that contain credentials (no `mib show`, no `cat /var/config/
+    lastgood.xml`), so this is mostly an insurance policy against future
+    probes that scrape config-file output. Doesn't change normal probe
+    paths -- only the human-readable --diagnose dump."""
+    return _DIAG_REDACT_RE.sub(r'\1\2<REDACTED>', line)
+
+
 def diagnose():
     """Run a verbose one-shot probe of every device and print a copy-pasteable
     report. Designed to be the first thing a user runs before filing an issue."""
@@ -1045,7 +1071,7 @@ def diagnose():
                     nchars = len(text)
                     print(f'\n[{key}] cmd={cmd!r} took={elapsed_ms:.0f}ms bytes={nchars} lines={nlines}')
                     for line in text.splitlines()[:20]:
-                        print(f'  | {line}')
+                        print(f'  | {_scrub(line)}')
                     if nlines > 20:
                         print(f'  | ... {nlines - 20} more lines')
                 except Exception as e:  # pylint: disable=broad-exception-caught

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpon-exporter"
+description = "Prometheus exporter for the HSGQ / ODI (Realtek RTL960x) GPON SFP"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Strykar" }]
+keywords = ["prometheus", "exporter", "gpon", "ftth", "sfp", "homelab"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking :: Monitoring",
+]
+dynamic = ["version"]
+dependencies = [
+    "paramiko>=3.0",
+    "prometheus_client>=0.17",
+]
+
+[project.urls]
+Homepage = "https://github.com/Strykar/GPON"
+Issues = "https://github.com/Strykar/GPON/issues"
+Releases = "https://github.com/Strykar/GPON/releases"
+
+[project.scripts]
+gpon-exporter = "gpon_exporter:main"
+
+[tool.setuptools]
+py-modules = ["gpon_exporter"]
+
+[tool.setuptools.dynamic]
+version = { attr = "gpon_exporter.__version__" }
