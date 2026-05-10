@@ -458,7 +458,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "SFP SoC temperature with colour bands matching SFP-MSA temperature classes. Green: 0-70 C (commercial in-spec). Yellow: -5-0 C and 70-85 C (extended-only zone). Orange: -40 to -5 C (industrial-only zone). Red: outside -40 to 85 C (out of spec for any standard variant).",
+      "description": "SFP SoC temperature with colour bands matching the SFP-MSA scheme used by Tx/Rx power panels. Green: 0 to 70 C (commercial). Orange: -40 to 0 C and 70 to 85 C (extended/industrial-only zones). Red: outside -40 to 85 C (out of spec for any standard variant).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -511,15 +511,11 @@
                 "value": -40
               },
               {
-                "color": "yellow",
-                "value": -5
-              },
-              {
                 "color": "green",
                 "value": 0
               },
               {
-                "color": "yellow",
+                "color": "orange",
                 "value": 70
               },
               {
