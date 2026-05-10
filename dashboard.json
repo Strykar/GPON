@@ -2710,7 +2710,8 @@
           "range": true,
           "refId": "B"
         }
-      ]
+      ],
+      "description": "Bytes/sec on the SFP's LAN-side electrical interface. This is your pass-through traffic -- everything between your host (router/switch) and the OLT crosses eth0."
     },
     {
       "datasource": {
@@ -2830,7 +2831,8 @@
           "range": true,
           "refId": "D"
         }
-      ]
+      ],
+      "description": "Cable/PHY-layer error and drop rates on eth0 (the SFP cage contact). Should be flat zero -- non-zero means bad SFP cage seating, dirty contacts, EMI, or duplex mismatch."
     },
     {
       "id": 170,
@@ -2944,7 +2946,8 @@
           "range": true,
           "refId": "B"
         }
-      ]
+      ],
+      "description": "Packets/sec per kernel interface, RX above zero / TX below zero. eth0 and br0 carry pass-through traffic. The PON-side virtuals (pon0, eth0.2, eth0.3, nas0) are placeholder interfaces and stay at zero on this firmware."
     },
     {
       "datasource": {
@@ -3043,7 +3046,8 @@
           "range": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": "SFP-side netfilter conntrack table fill. The SFP only NATs in HGU mode -- in SFU mode (the typical setup) traffic bridges transparently and this stays near zero. This is the SFP's own conntrack, not your router's."
     },
     {
       "datasource": {
@@ -3141,7 +3145,8 @@
           "range": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": "TCP retransmit percentage on the SFP itself, NOT your pass-through TCP traffic. The SFP only runs TCP for its own management plane (exporter's SSH every 5 min, web UI, telnet). Useful for diagnosing the management link to the SFP, not the quality of your user network."
     },
     {
       "datasource": {
@@ -3263,7 +3268,8 @@
           "expr": "rate(gpon_snmp_total{instance=~\"$instance\",protocol=\"Tcp\",name=\"EstabResets\"}[5m])",
           "legendFormat": "estab resets"
         }
-      ]
+      ],
+      "description": "TCP connection events on the SFP's own stack -- mostly the exporter's SSH session opening every 5 min (passive opens). Not your client/server connections, which bridge transparently and never touch the SFP's TCP stack."
     },
     {
       "datasource": {
@@ -3374,7 +3380,8 @@
           "range": true,
           "refId": "C"
         }
-      ]
+      ],
+      "description": "UDP error rates on the SFP's local stack. The SFP doesn't expose UDP services so these should normally be zero. Non-zero suggests a wedged daemon, port-scan from a host on the same segment, or a corrupted upstream link."
     },
     {
       "datasource": {
@@ -3443,7 +3450,8 @@
           "range": true,
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Multicast groups the SFP's own kernel has joined per interface. In SFU mode every interface shows 1 (just the default 224.0.0.1 all-hosts group). Becomes interesting only on HGU/IGMP-snooping firmware where IPTV joins/leaves change the count."
     },
     {
       "id": 180,
@@ -3551,7 +3559,8 @@
         "namePlacement": "auto",
         "sizing": "auto"
       },
-      "pluginVersion": "11.0.0"
+      "pluginVersion": "11.0.0",
+      "description": "TCP/UDP socket counts on the SFP itself. TCP inuse should track the exporter SSH (1) plus a couple of internal daemons; spikes in TIME_WAIT mean an internal daemon is opening and closing connections aggressively. Not your client/server socket counts."
     },
     {
       "collapsed": false,
