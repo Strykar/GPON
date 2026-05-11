@@ -394,7 +394,7 @@ Firmware tarballs and the spec/manual PDFs are on the
 | File | Variant | Date | Status |
 | --- | --- | --- | --- |
 | `M110_sfp_ODI_220923_SFU.tar` | M110 SFU V1.0-220923 | 2022-09-23 | Verified end-to-end |
-| `M110_sfp_HSGQ_SFU_240408.tar` | M110 SFU V1.1.8-240408 | 2024-04-08 | Untested |
+| `M110_sfp_HSGQ_SFU_240408.tar` | M110 SFU V1.1.8-240408 | 2024-04-08 | **Broken WAN** on Airtel BNG (ALCL OLT) -- see [QUIRKS](docs/QUIRKS.md#v118-240408-broke-wan-for-at-least-one-deployment) |
 | `M114_sfp_ODI_231021_HGU.tar` | M114 HGU V1.7.1-231021 | 2023-10-21 | Untested |
 | `V1.1.3_sfp_HSGQ_HGU_250620.tar` | HGU V1.1.4-250620 | 2025-06-20 | Untested |
 | `*.pdf` | Spec sheets, user manual, ONU activation paper | n/a | -- |

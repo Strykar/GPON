@@ -235,6 +235,88 @@ The single most consequential quirk we found.
   restart without `--enable-omci`, and power-cycle the SFP if you want the
   omcicli probes back.
 
+## Dual-slot firmware images and rollback
+
+The SFP carries TWO firmware images in flash and can boot from either,
+selected by the bootloader at every boot. The MTD layout (from `cat
+/proc/mtd`):
+
+```
+mtd0  "boot"    256K  u-boot
+mtd1  "env"     8K    bootloader env (primary)
+mtd2  "env2"    8K    bootloader env backup
+mtd3  "config"  240K  /var/config jffs2
+mtd4  "k0"      1.3M  kernel slot 0     \
+mtd5  "r0"      2.5M  rootfs slot 0     /  slot 0 firmware
+mtd6  "k1"      1.3M  kernel slot 1     \
+mtd7  "r1"      2.5M  rootfs slot 1     /  slot 1 firmware
+mtd12 "linux"   1.3M  bootloader-mapped active kernel
+mtd13 "rootfs"  2.5M  bootloader-mapped active rootfs
+```
+
+The active firmware version of each slot is recorded in env variables
+`sw_version0` and `sw_version1`. **The variable the bootloader reads to
+pick a slot is `sw_commit`, not `sw_active`.** `sw_active` is a *status*
+variable -- the bootloader writes it during boot to reflect which slot
+actually got loaded. From `mtd1`:
+
+```
+boot_by_commit=if itest.s ${sw_commit} == 0;then run set_act0;run b0;else run set_act1;run b1;fi
+```
+
+So **the correct manual rollback CLI is**:
+
+```sh
+nv setenv sw_commit 0 && reboot   # boot slot 0 (the older image)
+nv setenv sw_commit 1 && reboot   # boot slot 1
+```
+
+Setting `sw_active` directly does nothing useful -- the bootloader
+overwrites it on next boot. The vendor's web UI image-switch button
+sets `sw_commit` for you and is the easier path; the CLI route exists
+for headless deployments.
+
+### V1.1.8-240408 broke WAN for at least one deployment
+
+Symptoms after upgrading from V1.0-220923 to V1.1.8-240408 (the HSGQ
+build dated 2024-04-08, the second-newest M110 SFU image available at
+time of writing):
+
+- ONU registers cleanly (`gpon_onu_state = 5`).
+- All seven alarm gauges read 0.
+- All five GEM port mappings appear correctly.
+- **But** the IPoE static IP session AND the IPv4 PPPoE session on the
+  same fibre both fail to come up at the BNG. From the gateway side,
+  PPPoE never completes LCP; the static IP never receives a DHCP/ARP
+  reply.
+- During a transient pre-O5 state observed once on V1.1.8, the omci_app
+  log channel leaked into `omcicli mib getcurr <table>` responses with:
+
+  ```
+  MIB_Table_Init Init mib table:mib_Me{242,243,350,370,373}.so fail, error code is:1
+  Send alarm notify fail: EthUni, 0x101   (repeated 30+ times)
+  ```
+
+  These `.so` files ARE absent from V1.1.8's `/lib`, but they are also
+  absent from V1.0's `/lib` and V1.0 works fine -- so the missing
+  modules are not the root cause on their own. The `Send alarm notify
+  fail` cascade suggests V1.1.8 has a broken OMCI alarm-notify path
+  that the OLT trips during higher-layer provisioning.
+
+- Vendor capability flags differ:
+  - V1.0-220923: `cflag BDP=0x00000102, RDP=0x00000004, MC=0x00000000, ME=0x00010000`
+  - V1.1.8-240408: `cflag BDP=0x00000182` (bit 7 set; full readout
+    truncated in the captured run, possibly different shape)
+
+- A third-party report (Discord) on V1.1.6-240202 against a different
+  OLT shows V1.1.6 working as expected. So the regression is **specific
+  to the V1.1.8-240408 build**, not the post-V1.0 line in general.
+
+Recommendation: stay on V1.0-220923. If you need to test V1.1.8, do it
+with WAN failover in place because rollback requires either the web
+UI's image-switch button or `nv setenv sw_commit <other-slot> &&
+reboot`, neither of which works if the SFP itself is wedged.
+
 ## /stats.asp and the boa HTTP server
 
 - The vendor's web UI is served by `boa` on port 80, embedding HTML pages
