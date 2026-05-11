@@ -279,43 +279,121 @@ for headless deployments.
 ### V1.1.8-240408 broke WAN for at least one deployment
 
 Symptoms after upgrading from V1.0-220923 to V1.1.8-240408 (the HSGQ
-build dated 2024-04-08, the second-newest M110 SFU image available at
-time of writing):
+build dated 2024-04-08):
 
-- ONU registers cleanly (`gpon_onu_state = 5`).
-- All seven alarm gauges read 0.
-- All five GEM port mappings appear correctly.
-- **But** the IPoE static IP session AND the IPv4 PPPoE session on the
-  same fibre both fail to come up at the BNG. From the gateway side,
-  PPPoE never completes LCP; the static IP never receives a DHCP/ARP
-  reply.
-- During a transient pre-O5 state observed once on V1.1.8, the omci_app
-  log channel leaked into `omcicli mib getcurr <table>` responses with:
+- ONU registers cleanly (`gpon_onu_state = 5`), all alarm gauges read 0,
+  all five GEM port mappings appear correctly.
+- **But** the IPoE static-IP session AND the IPv4 PPPoE session on the
+  same fibre both fail to come up at the BNG. PPPoE never completes
+  LCP; the static IP never receives a DHCP/ARP reply.
+- A third-party Discord report on V1.1.6-240202 against a different OLT
+  shows V1.1.6 working as expected. The regression is **specific to the
+  V1.1.8-240408 build**.
 
-  ```
-  MIB_Table_Init Init mib table:mib_Me{242,243,350,370,373}.so fail, error code is:1
-  Send alarm notify fail: EthUni, 0x101   (repeated 30+ times)
-  ```
+### What V1.1.8 actually changed vs V1.0 (offline tarball diff)
 
-  These `.so` files ARE absent from V1.1.8's `/lib`, but they are also
-  absent from V1.0's `/lib` and V1.0 works fine -- so the missing
-  modules are not the root cause on their own. The `Send alarm notify
-  fail` cascade suggests V1.1.8 has a broken OMCI alarm-notify path
-  that the OLT trips during higher-layer provisioning.
+Extracting `M110_sfp_ODI_220923_SFU.tar` and `M110_sfp_HSGQ_SFU_240408.tar`
+and diffing the rootfs squashfs trees, the substantive additions in
+V1.1.8 are:
 
-- Vendor capability flags differ:
-  - V1.0-220923: `cflag BDP=0x00000102, RDP=0x00000004, MC=0x00000000, ME=0x00010000`
-  - V1.1.8-240408: `cflag BDP=0x00000182` (bit 7 set; full readout
-    truncated in the captured run, possibly different shape)
+- **`/bin/sfpapp`** -- new 5 KB binary. Small LOID-provisioning helper.
+  Strings include `flash set LOID %s`, `flash set LOID_PASSWD %s`,
+  `omcicli set loid %s %s`, `omcicli get loidauth | sed 's/Auth Status
+  : //g'`. Listens on a packet-redirect socket for OOB LOID commands.
+- **`/lib/omci/mib_ExtendedOnuGZTE.so`** -- ZTE-vendor-specific
+  Extended-ONU-G handler. Registers via `MIB_Proprietary_Reg` and hooks
+  the **separate** `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX` table (the
+  standard `MIB_TABLE_EXTENDED_ONU_G_INDEX` is still registered too).
+  Additive, not overriding; unlikely to be the breaker on its own.
+- **`/lib/features/internal/me_00001000.so`** -- new internal feature
+  module. Strings include `no_send_alarm`, suggesting V1.1.8 grew code
+  paths that can suppress alarm notification under some condition.
+- **`/etc/producttype`** = `X100SFP`, **`/etc/soft_version`** = `V1.1.8`
+  -- marker files V1.0 doesn't have.
+- **`/etc/scripts/rtkbosa.sh`** -- BOSA calibration script that picks
+  between `rtkbosa_gpon_k.bin` / `rtkbosa_epon_k.bin` / `rtkbosa_k.bin`
+  based on `mib get PON_MODE`. V1.0 doesn't run it on boot.
+- **Expanded IoT VLAN provisioning in `omci_app`**: V1.0 has single
+  `-iot_pri` / `-iot_vid`. V1.1.8 has `-iot_pri1..4` / `-iot_vid1..4`,
+  plus new functions `OMCI_IotVlanCfgSet_Cmd` and
+  `omci_InitOntPrivateVlan`.
+- **Removed**: `/bin/cut, date, ln, mv, pidof` busybox tools (no idea
+  why; presumably to claw back rootfs size).
+- **Added convenience**: `/bin/bash`, `/bin/telnet`, `/bin/fgrep`,
+  `/bin/traceroute6`.
 
-- A third-party report (Discord) on V1.1.6-240202 against a different
-  OLT shows V1.1.6 working as expected. So the regression is **specific
-  to the V1.1.8-240408 build**, not the post-V1.0 line in general.
+The `libomci_api.so`, `libomci_mib.so`, `libomci_fal.so`, and
+`libomci_gos.so` libraries are **byte-identical** between V1.0 and
+V1.1.8. The OMCI infrastructure didn't change. The changes are in the
+omci_app daemon and the new per-ME plugins.
 
-Recommendation: stay on V1.0-220923. If you need to test V1.1.8, do it
-with WAN failover in place because rollback requires either the web
-UI's image-switch button or `nv setenv sw_commit <other-slot> &&
-reboot`, neither of which works if the SFP itself is wedged.
+### Prime suspect: GPON `mac_check` / `mackeyVerify`
+
+Strings in V1.1.8's `omci_app` include:
+
+```
+echo 1 > /tmp/mackeyVerify
+echo 0 > /tmp/mackeyVerify
+GPON mac_check fail !!!!!!
+onuMac:%2x:%2x:%2x:%2x:%2x:%2x
+```
+
+V1.0's `omci_app` contains **zero references** to `mackeyVerify` or
+`mac_check fail`. The HGU V1.7.1 build also has zero references; HGU
+V1.1.4 has two `mackeyVerify` references (so it's not exclusive to
+V1.1.8, but V1.0 SFU definitely lacks it).
+
+The verification almost certainly uses the `MAC_KEY` value in NVRAM
+(visible via `mib show hs`, a 32-hex-character secret set at factory
+provisioning). The plausible failure mode on the affected deployment:
+V1.1.8 expects `MAC_KEY` to match a value computed from some OLT-side
+input; the user's factory-installed `MAC_KEY` was provisioned to work
+with V1.0's flow and doesn't satisfy V1.1.8's new check; the daemon
+writes `mackeyVerify=0`; downstream OMCI provisioning gates upper-layer
+service profiles on that flag; PPPoE/IPoE never get the service
+profile and fail at the BNG.
+
+This is a hypothesis based on string evidence, not a confirmed
+mechanism -- we don't have an OMCI protocol trace from the broken
+boot. But it's the strongest single candidate from the available
+evidence and explains all the symptoms (PHY-layer activates fine,
+upper layers refuse).
+
+### Things I claimed earlier that turned out to be wrong
+
+Previous revisions of this document said:
+
+1. **"`mib_Me{242,243,350,370,373}.so` are missing from V1.1.8."**
+   They are present, in `/lib/omci/`. My runtime `find / -name
+   "mib_Me*.so"` returned empty due to either a busybox `find` quirk
+   on this firmware (it skips `/lib/omci/`?) or a misread of my own
+   probe output. The "MIB_Table_Init Init fail, error code is:1" log
+   we saw means **the `.so` loaded and its init() returned 1** -- a
+   runtime config-state error, not a missing file.
+2. **"`omcicli mib get/getcurr ignores its argument and always dumps
+   the table directory."**  This was only true while the SFP was in
+   pre-O5 / broken-activation state. In O5, `omcicli mib get <name>`
+   and `omcicli mib getcurr <classId> <entityId>` both work fine on
+   V1.0-220923. Verified empirically post-rollback.
+3. **"`omcicli get sn` is broken on V1.0-220923; the collector parses
+   the SN from `ps`."**  Works fine on V1.0 in O5: `omcicli get sn`
+   returns `SerialNumber: DSNW282D5510`. The `ps`-extraction
+   workaround in the collector is overkill -- still wedge-immune, so
+   leaving it -- but the original justification was wrong.
+
+The pattern: most omcicli features look "broken" if you probe them
+while the SFP is in pre-O5 (initial activation or a degraded boot like
+V1.1.8 hit here). In O5 the omcicli surface is much richer than this
+doc previously suggested. Re-verify before adding any future quirk
+entry about "X verb doesn't work."
+
+### Recommendation
+
+Stay on V1.0-220923 unless V1.1.6-240202 is also available and you
+want to test it (no MAC verification code there per a Discord report).
+If you must test V1.1.8, do it behind WAN failover; rollback requires
+either the web UI's image-switch button or `nv setenv sw_commit
+<other-slot> && reboot` -- neither helps if the SFP is wedged.
 
 ## /stats.asp and the boa HTTP server
 
