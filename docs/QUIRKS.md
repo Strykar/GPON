@@ -276,187 +276,187 @@ overwrites it on next boot. The vendor's web UI image-switch button
 sets `sw_commit` for you and is the easier path; the CLI route exists
 for headless deployments.
 
-### V1.1.8-240408 broke WAN for at least one deployment
+### V1.1.8-240408: data-plane regression localised to userspace OMCI
 
-Symptoms after upgrading from V1.0-220923 to V1.1.8-240408 (the HSGQ
-build dated 2024-04-08):
+**Symptom.** ONU reaches O5 cleanly: registered with the OLT, ranged,
+all seven alarm gauges clear, GEM port mappings present. But no service
+traffic reaches the host. Direct measurement on an ALCL/Alcatel BNG
+(Airtel WAN, India): 32,095 frames received at the GEM layer over 15
+minutes of V1.1.8 runtime, **1** of which surfaced on Ethernet. PPPoE
+and IPoE static both fail at the BNG. LLDP/MNDP from the BRAS shows up
+in MikroTik `/tool/torch` (link-local multicast takes a different path
+than service unicast), which is what initially made this look like
+host-side SerDes when it isn't.
 
-- ONU registers cleanly (`gpon_onu_state = 5`), all alarm gauges read 0,
-  all five GEM port mappings appear correctly.
-- **But** the IPoE static-IP session AND the IPv4 PPPoE session on the
-  same fibre both fail to come up at the BNG. PPPoE never completes
-  LCP; the static IP never receives a DHCP/ARP reply.
-- A third-party Discord report on V1.1.6-240202 against a different OLT
-  shows V1.1.6 working as expected. The regression is **specific to the
-  V1.1.8-240408 build**.
+V1.0-220923 in the same fibre and OLT environment delivered 232,260
+unicast Ethernet frames in 6 minutes post-rollback. Same BNG, same
+fibre, same SFP hardware, working firmware vs broken firmware.
 
-### What V1.1.8 actually changed vs V1.0 (offline tarball diff)
+### The diagnostic ladder
 
-Extracting `M110_sfp_ODI_220923_SFU.tar` and `M110_sfp_HSGQ_SFU_240408.tar`
-and diffing the rootfs squashfs trees, the substantive additions in
-V1.1.8 are:
+For any future "ONU O5, no service traffic" report on this hardware,
+walk this ladder top-to-bottom. Each rung **strictly subsumes** the
+diagnostic territory of every hypothesis below it; the next person
+should not chase any specific theory until they have run all four:
 
-- **`/bin/sfpapp`** -- new 5 KB binary. Small LOID-provisioning helper.
-  Strings include `flash set LOID %s`, `flash set LOID_PASSWD %s`,
-  `omcicli set loid %s %s`, `omcicli get loidauth | sed 's/Auth Status
-  : //g'`. Listens on a packet-redirect socket for OOB LOID commands.
-- **`/lib/omci/mib_ExtendedOnuGZTE.so`** -- ZTE-vendor-specific
-  Extended-ONU-G handler. Registers via `MIB_Proprietary_Reg` and hooks
-  the **separate** `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX` table (the
-  standard `MIB_TABLE_EXTENDED_ONU_G_INDEX` is still registered too).
-  Additive, not overriding; unlikely to be the breaker on its own.
-- **`/lib/features/internal/me_00001000.so`** -- new internal feature
-  module. Strings include `no_send_alarm`, suggesting V1.1.8 grew code
-  paths that can suppress alarm notification under some condition.
-- **`/etc/producttype`** = `X100SFP`, **`/etc/soft_version`** = `V1.1.8`
-  -- marker files V1.0 doesn't have.
-- **`/etc/scripts/rtkbosa.sh`** -- BOSA calibration script that picks
-  between `rtkbosa_gpon_k.bin` / `rtkbosa_epon_k.bin` / `rtkbosa_k.bin`
-  based on `mib get PON_MODE`. V1.0 doesn't run it on boot.
-- **Expanded IoT VLAN provisioning in `omci_app`**: V1.0 has single
-  `-iot_pri` / `-iot_vid`. V1.1.8 has `-iot_pri1..4` / `-iot_vid1..4`,
-  plus new functions `OMCI_IotVlanCfgSet_Cmd` and
-  `omci_InitOntPrivateVlan`.
-- **Removed**: `/bin/cut, date, ln, mv, pidof` busybox tools (no idea
-  why; presumably to claw back rootfs size).
-- **Added convenience**: `/bin/bash`, `/bin/telnet`, `/bin/fgrep`,
-  `/bin/traceroute6`.
+1. **Does the ONU reach O5?** If not, the regression is at the
+   ranging / mackey / optical / BOSA / host-side SerDes layer
+   (anything that would prevent O5 in the first place).
+2. **Is `diag gpon show counter global ds-gem` Non Idle climbing?**
+   If yes, the OLT is pushing traffic and frames are reaching the
+   GEM layer. Kills every "BNG refuses service profile" / "vendor
+   identity mismatch" / "OLT-side provisioning" hypothesis.
+3. **Compare `DS GEM Non Idle` to `diag gpon show counter global
+   ds-eth` Total Unicast.** If non-idle is in the thousands and
+   unicast is near zero, the SFP is dropping BNG traffic between
+   GEM de-encapsulation and Ethernet handoff. Localises the bug
+   to the GEM → Ethernet path inside the ONU. Kills every OMCI-
+   config and OMCI-identity hypothesis, because those would
+   either drop at GEM (filter denies) or pass to Ethernet (filter
+   permits); they cannot produce a 32000:1 ratio between the two.
+4. **Diff the post-hydration ME state between the working and
+   broken firmware.** Pull `omcicli mib get` on every VLAN /
+   MAC-bridge / EVTO / GEM-mapping ME on both, normalise instance
+   numbers, diff. If identical, the bug is not in what the OLT
+   pushed or how the ONU received it; it is in what compiled code
+   does with the frames afterward.
 
-The `libomci_api.so`, `libomci_mib.so`, `libomci_fal.so`, and
-`libomci_gos.so` libraries are **byte-identical** between V1.0 and
-V1.1.8. The OMCI infrastructure didn't change. The changes are in the
-omci_app daemon and the new per-ME plugins.
+In this case, rungs 1, 2, 3 confirmed in 30 seconds; rung 4
+confirmed in ~5 minutes of dumps. Together they conclusively place
+the bug below the OMCI layer, in compiled binary code, with no need
+for source.
 
-### Root cause: `/etc/runlansds.sh` flash-key rename, upgrade-preserve trap
+### Graveyard of six wrong hypotheses
 
-Diffing `/etc/runlansds.sh` between the two SFU firmwares:
+Every line below was a load-bearing theory backed by a real
+firmware diff or a real config field. Each ladder rung above
+killed at least one. Preserved here in roughly the order they
+were generated, with which rung killed them:
 
-```diff
- #!/bin/sh
+| # | Hypothesis | What killed it |
+|---|---|---|
+| 1 | Missing `mib_Me{242,243,350,370,373}.so` files in V1.1.8 | Rung 4: extracted firmware tarballs show the files present in `/lib/omci/` on both V1.0 and V1.1.8. The runtime `find / -name "mib_Me*.so"` returning empty was a busybox `find` traversal quirk plus my misread. The "MIB_Table_Init Init fail, error code is:1" log we saw means the `.so` loaded and its `init()` returned 1 -- a runtime state error, not a missing file. |
+| 2 | `mac_check` / `mackeyVerify` gating the service-profile push | Rung 1+2: web UI shows `Mackey Status: success` and ONU reaches O5. Verification passes. |
+| 3 | OMCI "Send alarm notify fail: EthUni" cascade as breaker | Rung 1: was a transient observed during one bad activation. Gone once O5 is reached. |
+| 4 | `/etc/runlansds.sh` `LAN_SDS_MODE` → `LAN_SPEED_MODE` flash-key rename | Rung 2 (and a direct trace): `config_xmlconfig.sh -b` runs before `runlansds.sh` in `rc3` and writes the new key from `config_default.xml`. Verified live on V1.1.8: `flash get LAN_SPEED_MODE=0`, `/proc/lan_sds/lan_sds_cfg = mode 1(Fiber 1G)` identical to V1.0. Real diff, theoretical trap, doesn't actually trigger. |
+| 5 | EVTO interpretation drift in V1.1.8's rebuilt VLAN-handling `.so` files | Rung 4: OLT-pushed `ExtVlanTagOperCfgData` is byte-identical between V1.0 and V1.1.8 (same 7 INDEX rules, same filters, same treatments). MikroTik already runs Manual → Transparent Mode which bypasses EVTO entirely. |
+| 6 | `CircuitPack.Version` / `SwImage.Active.Version` as the BNG's service-profile discriminator | Rung 3 + spoof test: set `OMCI_SW_VER1=V0.9-spooftest` in NVRAM on V1.0, reboot. WAN delivered 232k unicast frames in 6 min with the fake string advertised in both `CircuitPack.Version` and `SwImage.Active.Version`. The BNG does not key off OMCI-reported firmware version. |
 
--lan_sds_mode=`flash get LAN_SDS_MODE | sed 's/LAN_SDS_MODE=//g'`
-+lan_sds_mode=`flash get LAN_SPEED_MODE | sed 's/LAN_SPEED_MODE=//g'`
- echo $lan_sds_mode > proc/lan_sds/lan_sds_cfg
- echo 1 > proc/lan_sds/sfp_app
- sfpapp &
-```
+### Methodology lesson
 
-That script programs the **host-side SerDes** -- the electrical link
-between the SFP stick and the router's SFP cage. It runs from
-`/etc/init.d/rc3` on every boot. The OEM renamed the flash key
-(`LAN_SDS_MODE` → `LAN_SPEED_MODE`), most likely to allow distinct
-GPON vs EPON speed modes, and updated `/etc/config_default.xml` to
-write the new key on a fresh install. But on an **upgrade with
-preserved config**, the old `LAN_SDS_MODE` value rides through
-untouched in NVRAM while `LAN_SPEED_MODE` is never set. `flash get
-LAN_SPEED_MODE` returns nothing, so `$lan_sds_mode` evaluates to the
-empty string, and the script writes a bare newline to
-`/proc/lan_sds/lan_sds_cfg`. The kernel module (`pf_rtk.ko`) falls
-through to its compile-time default -- almost certainly SGMII
-auto-negotiation -- which does not match what an RB5009's
-`sfp-sfpplus*` port expects from this stick under the previous
-config. The host-side link comes up cosmetically (light, SGMII
-auto-neg "completes") but does not pass frames cleanly to the
-router.
+The six wrong hypotheses were not a parade of careless guesses --
+each one was load-bearing on a real diff, a real config field, a
+real ME definition, or a real identity mechanism documented in
+G.988. The pattern that produced them is universal to "X changed
+between versions, here's a story for how X could matter" reasoning.
 
-The optical front-end is programmed via a completely separate path
-(`rtkbosa` loads BOSA calibration in `rc3`, the GPON MAC handles
-ranging with the OLT over fibre). None of that touches the
-host-side SerDes. That is why `gpon_onu_state = 5` and all alarms
-read clear even though the WAN is broken end-to-end.
+The corpus of things that changed between V1.0 and V1.1.8 is
+enormous: a userspace daemon got bigger, multiple feature modules
+got rebuilt, a new ME plugin appeared, a config-default value
+flipped, an init script's flash key was renamed, a vendor-specific
+ME got added, a packet-redirect agent was introduced. Every single
+one of those was a real change someone could spin a story around.
 
-### Workaround: stay on V1.1.8 without rollback
+The corpus of subsystems that can produce a 32000:1 drop between
+two adjacent counters in a Linux network stack is small. **Diff-
+driven hypotheses are unbounded in count. Counter-driven hypotheses
+are bounded by where the counters disagree.** The right theory came
+from "I have a 32095:1 ratio, what can produce that?" not from "I
+found a thing that changed, here's how it could matter."
 
-On the new firmware, with no reboot needed:
+### Where the bug actually lives (scope narrowing)
 
-```sh
-flash get LAN_SDS_MODE        # old value, should still be present
-flash get LAN_SPEED_MODE      # likely empty / missing
-cat /proc/lan_sds/lan_sds_cfg # current applied mode
+Live ME captures on both firmwares after O5 + OLT hydration show
+identical OMCI state for every VLAN / MAC-bridge / EVTO / GEM-
+mapping ME we sampled (`ExtVlanTagOperCfgData`, `VlanTagFilterData`,
+`MacBriServProf`, `MacBriPortCfgData`, `MacBridgePortFilterPreassign`,
+`Map8021pServProf`, `VEIP`, `GemPortCtp`, `GemIwTp`), modulo a
+trivial wildcard difference in `PrivateVlanCfg.ManualTagVid` (65535
+vs 0; `ManualMode=0` on both, so the value is moot).
 
-# Apply the old value live to test:
-echo <value-from-LAN_SDS_MODE> > /proc/lan_sds/lan_sds_cfg
-# Bounce the host-side link or ifdown/ifup on the router, recheck the BNG.
+Offline binary diff of the extracted firmwares (`strings -a` +
+filtered `readelf -s` symbol tables) on the two relevant kernel
+modules:
 
-# Persist:
-flash set LAN_SPEED_MODE=<value>
-reboot
-```
+- `pf_rtk.ko` (the 120 KB data-plane bridge module): **byte-
+  identical** strings (1541 each, same set), byte-identical symbol
+  table (884 each, only difference is compiler-generated
+  `__func__.NNNN` counter suffixes that always differ between
+  builds). The data plane kernel module is NOT the bug.
+- `omcidrv.ko` (the 109 KB OMCI driver): also byte-identical
+  strings, also byte-identical symbol table. Not the bug.
 
-This is the actual fix for V1.1.8 -- rollback isn't necessary if
-you'd rather keep the newer firmware. The same trap will catch
-anyone else who upgrades from V1.0-220923 with config preservation
-and expects host-side link to keep working.
+The differences are all in **userspace OMCI ME handling**:
 
-### Other V1.1.8 diff items worth knowing (but not the breakage)
+- `bin/omci_app` daemon: V1.1.8 is 1.5 KB larger, with new strings
+  for `mackeyVerify` / `GPON mac_check fail`, IoT-VLAN provisioning
+  (`-iot_pri1..4`, `-iot_vid1..4`), and `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX`.
+- Every `.so` under `/lib/features/internal/` is slightly larger
+  in V1.1.8 (+99 to +259 bytes per file). Consistent global
+  rebuild -- could be ABI shim, common helper addition, or
+  compiler version artefact. We don't have source.
+- V1.1.8 adds `/lib/features/internal/me_00001000.so` (17 KB)
+  with a `no_send_alarm` string and `feature_api_register`
+  hooks across most MIB tables. This is the only V1.1.8-exclusive
+  feature module.
+- V1.1.8 adds `/lib/omci/mib_ExtendedOnuGZTE.so` (proprietary
+  ZTE-vendor ME, registered additively as a separate table; not
+  overriding the standard).
 
-- **`config_default.xml`**: `OMCI_CUSTOM_RDP` default flipped 4 → 0.
-  Only affects fresh installs; preserved MIB keeps your old value
-  through an upgrade.
-- **BOSA load moved from rc32 to rc3**, replacing the hard-coded
-  `rtkbosa -c /var/config/rtl-3320-backup.bin` call with the new
-  `/etc/scripts/rtkbosa.sh` that picks `rtkbosa_gpon_k.bin` vs
-  `rtkbosa_epon_k.bin` from `/var/config` based on `mib get PON_MODE`.
-- **`/lib/omci/mib_ExtendedOnuGZTE.so`** added. Registers a
-  proprietary `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX` table via
-  `MIB_Proprietary_Reg`. The standard `EXTENDED_ONU_G_INDEX` table
-  is still registered too -- this is additive, not overriding.
-- **`/bin/sfpapp`** added. 5 KB Realtek "packet-redirect" agent
-  that lets the host inject LOID/PASSWORD over the SFP electrical
-  link via vendor-control frames. Runs `flash set LOID`,
-  `omcicli set loid`, `flash default cs` in response to control
-  packets, and registers a kernel packet-redirect callback
-  (`ptk_redirect_userApp_reg`). Strings suggest a narrow vendor
-  ethertype, not arbitrary VLAN-100 traffic -- so unlikely to
-  interfere with normal data plane, but worth keeping in mind as
-  a secondary suspect if the LAN_SPEED_MODE fix doesn't restore
-  traffic.
-- **`/lib/features/internal/me_00001000.so`** added. Internal
-  feature module that includes a `no_send_alarm` string. Earlier
-  drafts of this document hypothesised this was the breaker;
-  it isn't. The breaker is the `runlansds.sh` shell-script diff
-  above.
-- **`omci_app` strings** include new `GPON mac_check` /
-  `mackeyVerify` code paths and expanded IoT-VLAN provisioning
-  (`-iot_pri1..4` / `-iot_vid1..4`). These are real V1.1.8
-  additions but unrelated to the LAN-side SerDes failure observed
-  on this deployment.
+The bug is therefore in some combination of `omci_app`'s new code
+paths and the feature-module ABI / behaviour change. Possibly
+`me_00001000.so`'s broad ME-table interposition (it hooks dozens
+of MEs including AniG, GemPortCtp, GemIwTp -- exactly the chain
+that handles GEM → Eth bridging). No source, no userspace fix.
 
-### Things I claimed earlier that turned out to be wrong
+`dmesg | grep -iE "pf_rtk|gem|omci|drop"` is silent on V1.0:
+baseline healthy behaviour produces no kernel error messages. If
+anyone retries V1.1.8 in the future, the V1.1.8 dmesg should be
+the next capture; any output is a signal.
 
-Previous revisions of this document said:
+### Sub-finding: ONU identity is fully spoofable from userspace
 
-1. **"`mib_Me{242,243,350,370,373}.so` are missing from V1.1.8."**
-   They are present, in `/lib/omci/`. My runtime `find / -name
-   "mib_Me*.so"` returned empty due to either a busybox `find` quirk
-   on this firmware (it skips `/lib/omci/`?) or a misread of my own
-   probe output. The "MIB_Table_Init Init fail, error code is:1" log
-   we saw means **the `.so` loaded and its init() returned 1** -- a
-   runtime config-state error, not a missing file.
-2. **"`omcicli mib get/getcurr ignores its argument and always dumps
-   the table directory."**  This was only true while the SFP was in
-   pre-O5 / broken-activation state. In O5, `omcicli mib get NAME`
-   and `omcicli mib getcurr CLASSID ENTITYID` both work fine on
-   V1.0-220923. Verified empirically post-rollback.
-3. **"`omcicli get sn` is broken on V1.0-220923; the collector parses
-   the SN from `ps`."**  Works fine on V1.0 in O5: `omcicli get sn`
-   returns `SerialNumber: DSNW282D5510`. The `ps`-extraction
-   workaround in the collector is overkill -- still wedge-immune, so
-   leaving it -- but the original justification was wrong.
+Useful capability to preserve from the investigation: the chain
+`OMCI_SW_VER1` NVRAM key (config store) → `CircuitPack.Version`
+(both 0x101 and 0x106 bridge-port entities) → `SwImage.Active.Version`
+is **userspace-controllable end-to-end** via the web UI Settings
+page, or `mib set OMCI_SW_VER1=...` + reboot. On a fresh V1.0 boot
+with `OMCI_SW_VER1=V0.9-spooftest`, the OMCI MIB advertised that
+fake string to the OLT through three different MEs simultaneously,
+and WAN service continued normally (the spoof test that refuted
+hypothesis 6).
 
-The pattern: most omcicli features look "broken" if you probe them
-while the SFP is in pre-O5 (initial activation or a degraded boot like
-V1.1.8 hit here). In O5 the omcicli surface is much richer than this
-doc previously suggested. Re-verify before adding any future quirk
-entry about "X verb doesn't work."
+The auto-derived SwImage one might expect (read from actual flash
+partitions under `/proc/mtd`) does not exist on this firmware.
+What's reported via OMCI for slot 0's running version comes from
+NVRAM config, not from the slot's actual binary. Useful capability
+for any future "the BNG decides who I am based on what I advertise"
+debugging on this hardware family, even though it did not help here.
 
-### Recommendation
+### Operational guidance
 
-Stay on V1.0-220923 unless V1.1.6-240202 is also available and you
-want to test it (no MAC verification code there per a Discord report).
-If you must test V1.1.8, do it behind WAN failover; rollback requires
-either the web UI's image-switch button or `nv setenv sw_commit
-<other-slot> && reboot` -- neither helps if the SFP is wedged.
+**Empirical claim, true here**: V1.1.8-240408 on M110-SFP hardware
+against an ALCL/Alcatel BNG (Airtel WAN, India) drops ~99.997% of
+downstream unicast at the GEM-to-Ethernet path inside the ONU. WAN
+does not work. V1.0-220923 on the same hardware against the same
+BNG works without issue.
+
+**Untested claim, plausible**: V1.1.8's `pf_rtk.ko` / userspace OMCI
+stack regression may not exercise on every OLT vendor's traffic
+patterns. A different OLT might use different GEM port numbers,
+priority mappings, or VLAN handling that doesn't hit whatever code
+change broke. Discord users have reported V1.1.6-240202 working on
+a different OLT vendor entirely. Whether V1.1.8 universally breaks
+against all OLTs, or specifically against ALCL-pattern OLTs, would
+need data points from other deployments.
+
+For this deployment, stay on V1.0-220923. If you must test a newer
+firmware, run the diagnostic ladder above within the first 5 minutes
+of activation, and roll back if the ratio looks anything like the
+32000:1 we hit. The dual-image architecture (documented above
+under "Dual-slot firmware images and rollback") gives a fast path
+back: `nv setenv sw_commit OTHER_SLOT && reboot`, or the web UI's
+image-switch button if the SFP is responsive.
 
 ## /stats.asp and the boa HTTP server
 
