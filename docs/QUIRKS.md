@@ -173,19 +173,26 @@ deferred-improvements list.
   unless you've verified it actually works on the target firmware.
 - **`omcicli get onuid` and `omcicli get state` do not exist on this
   firmware.** They print the `omcicli get` usage page.
-- **`omcicli mib getcurr`, `omcicli mib get`, and `omcicli mib dump`
-  ignore their argument and always dump the full MIB table list** (a
-  TOC, not the contents). Useless for our purposes. Verified across
-  numeric class IDs, table names, comma syntax, and explicit `entityId`
-  -- every form falls through to the directory listing. `omcicli mib
-  getattr` is the only verb that doesn't fall through; it instead
-  returns an empty error and no data. **This closes the OMCI route for
-  Performance Monitoring (PM) accumulations on this firmware** -- the
-  PM tables (`FecPmhd`, `EthPmHistoryData`, `Anig`, etc.) exist in the
-  TOC but their contents are unreachable via `omcicli`. The exporter's
-  `gpon_alarm_*_raises_total` Counters compensate by tracking gauge
-  transitions in-process; sub-fetch-interval events remain firmware-
-  invisible (see TROUBLESHOOTING).
+- **`omcicli mib get NAME` and `omcicli mib getcurr CLASSID ENTITYID`
+  work in O5.** Earlier revisions of this document claimed they ignore
+  their argument and always dump the MIB table directory. That failure
+  mode is specific to pre-O5 / broken-activation state. In O5 both
+  syntaxes work: `omcicli mib get Anig`, `omcicli mib getcurr 312 0`,
+  `omcicli mib dump qmap/conn/srvflow/tasks` all return real data.
+  `omcicli mib getattr` is still the only verb that returns an empty
+  error on this firmware family.
+- **PM accumulation tables (`FecPmhd`, `EthPmHistoryData`,
+  `EthPmDataDs/Us`, `GemPortPmhd`, `GpncPmhd`) are queryable but empty
+  on every deployment we have data for.** Verified empty on V1.0-220923
+  and V1.1.8-240408 against the Airtel/ALCL BNG, and on V1.1.6-240202
+  against a different OLT vendor (Discord report). Cause is OLT-side:
+  per ITU-T G.988, PM History MEs are not implicit -- the OLT must
+  explicitly `create` ME instances before the ONU accumulates anything.
+  Most ISP-side OLT configurations don't bother. **Treat the OMCI PM
+  route as unavailable in practice on this hardware family.** The
+  exporter's `gpon_alarm_*_raises_total` Counters compensate by
+  tracking gauge transitions in-process; sub-fetch-interval events
+  remain invisible (see TROUBLESHOOTING).
 - **A hung `omcicli` client does NOT wedge `omci_app`**, despite the
   surface-level similarity to the diag-then-omcicli wedge. If a verb
   doesn't return data on this firmware, the omcicli command sits forever
