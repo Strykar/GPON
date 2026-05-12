@@ -364,50 +364,76 @@ are bounded by where the counters disagree.** The right theory came
 from "I have a 32095:1 ratio, what can produce that?" not from "I
 found a thing that changed, here's how it could matter."
 
-### Where the bug actually lives (scope narrowing)
+### Where the bug actually lives: what we have shown vs what we have inferred
 
-Live ME captures on both firmwares after O5 + OLT hydration show
-identical OMCI state for every VLAN / MAC-bridge / EVTO / GEM-
-mapping ME we sampled (`ExtVlanTagOperCfgData`, `VlanTagFilterData`,
-`MacBriServProf`, `MacBriPortCfgData`, `MacBridgePortFilterPreassign`,
-`Map8021pServProf`, `VEIP`, `GemPortCtp`, `GemIwTp`), modulo a
-trivial wildcard difference in `PrivateVlanCfg.ManualTagVid` (65535
-vs 0; `ManualMode=0` on both, so the value is moot).
+**Shown empirically:**
 
-Offline binary diff of the extracted firmwares (`strings -a` +
-filtered `readelf -s` symbol tables) on the two relevant kernel
-modules:
+- Live ME captures on both firmwares after O5 + OLT hydration:
+  every VLAN / MAC-bridge / EVTO / GEM-mapping ME sampled
+  (`ExtVlanTagOperCfgData`, `VlanTagFilterData`, `MacBriServProf`,
+  `MacBriPortCfgData`, `MacBridgePortFilterPreassign`,
+  `Map8021pServProf`, `VEIP`, `GemPortCtp`, `GemIwTp`) is
+  byte-identical between V1.0 and V1.1.8, modulo a trivial
+  wildcard difference in `PrivateVlanCfg.ManualTagVid` (65535
+  vs 0; `ManualMode=0` on both, so the value is moot).
+- Offline diff of `pf_rtk.ko` (the 120 KB data-plane bridge
+  module) via `strings -a` + filtered `readelf -s`: byte-identical
+  strings (1541 each, same set), byte-identical symbol table
+  (884 each, only difference is compiler-generated `__func__.NNNN`
+  counter suffixes that always differ between builds). The kernel
+  data plane module is NOT the bug.
+- Offline diff of `omcidrv.ko` (the 109 KB OMCI driver): also
+  byte-identical strings, also byte-identical symbol table.
+  Not the bug.
 
-- `pf_rtk.ko` (the 120 KB data-plane bridge module): **byte-
-  identical** strings (1541 each, same set), byte-identical symbol
-  table (884 each, only difference is compiler-generated
-  `__func__.NNNN` counter suffixes that always differ between
-  builds). The data plane kernel module is NOT the bug.
-- `omcidrv.ko` (the 109 KB OMCI driver): also byte-identical
-  strings, also byte-identical symbol table. Not the bug.
+**What this tells us:** if both the kernel data plane AND the
+OMCI MIB state post-hydration are byte-identical between
+firmwares, the bug must lie in the **translation between them**
+-- something userspace does after OMCI hydration that programs
+the kernel differently, or actively interferes with the data
+plane at runtime. The bug is therefore in userspace, but the
+specific mechanism is not pinned down. Three possibilities,
+ordered by plausibility:
 
-The differences are all in **userspace OMCI ME handling**:
+1. **The ME-to-kernel translation in `omci_app` and the feature
+   modules produces different kernel configuration for identical
+   MEs.** `omci_app` hydrates the MIB and configures the kernel
+   via ioctls into `pf_rtk` or writes under `/proc/omci/`. If
+   V1.1.8 interprets one of the identical MEs differently and
+   writes a different forwarding / filter rule, you get identical
+   OMCI state but different data-plane behaviour. **Test for the
+   next investigator:** dump `/proc/omci/*` post-hydration on
+   both versions and diff. V1.0 baseline saved at
+   `/tmp/sfp_v1.0_proc_baseline.txt` (captured 2026-05-12). Note:
+   the proc nodes are write-probe-read with an unknown verb
+   vocabulary; plain `cat` returns empty. Reverse-engineering
+   `omci_app` for the verb list is the gating step before any
+   meaningful diff is possible.
+2. **`/bin/sfpapp` actively filters or consumes data-plane
+   frames.** V1.1.8 ships a new 5 KB binary that registers a
+   packet-redirect callback (`ptk_redirect_userApp_reg`) in the
+   kernel; V1.0 doesn't (the binary is absent, `runlansds.sh`'s
+   `sfpapp &` call was a silent no-op). If its filter is too
+   broad, it intercepts BNG unicast for vendor-control LOID
+   processing and drops or mis-handles it. **Test:**
+   `kill -STOP $(pidof sfpapp)` on V1.1.8 and watch
+   `diag gpon show counter global ds-eth | grep Unicast` climb.
+   ~5 min of WAN downtime, fully reversible with `kill -CONT`.
+3. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
+   something at runtime that affects the data plane.** Strings
+   include `no_send_alarm` and `feature_api_register` hooks across
+   most MIB tables. Plausible but unfalsifiable without
+   instrumentation. Tested only if (1) and (2) come back clean.
 
-- `bin/omci_app` daemon: V1.1.8 is 1.5 KB larger, with new strings
-  for `mackeyVerify` / `GPON mac_check fail`, IoT-VLAN provisioning
-  (`-iot_pri1..4`, `-iot_vid1..4`), and `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX`.
-- Every `.so` under `/lib/features/internal/` is slightly larger
-  in V1.1.8 (+99 to +259 bytes per file). Consistent global
-  rebuild -- could be ABI shim, common helper addition, or
-  compiler version artefact. We don't have source.
-- V1.1.8 adds `/lib/features/internal/me_00001000.so` (17 KB)
-  with a `no_send_alarm` string and `feature_api_register`
-  hooks across most MIB tables. This is the only V1.1.8-exclusive
-  feature module.
-- V1.1.8 adds `/lib/omci/mib_ExtendedOnuGZTE.so` (proprietary
-  ZTE-vendor ME, registered additively as a separate table; not
-  overriding the standard).
-
-The bug is therefore in some combination of `omci_app`'s new code
-paths and the feature-module ABI / behaviour change. Possibly
-`me_00001000.so`'s broad ME-table interposition (it hooks dozens
-of MEs including AniG, GemPortCtp, GemIwTp -- exactly the chain
-that handles GEM → Eth bridging). No source, no userspace fix.
+**What we have NOT shown:** that any specific userspace component
+is the bug. The userspace differences we found (`omci_app` is
+1.5 KB larger; every `/lib/features/internal/*.so` grew by 99-259
+bytes; `me_00001000.so` added; `mib_ExtendedOnuGZTE.so` added)
+are consistent with a regression but also consistent with a
+benign global rebuild plus a couple of new features. **Consistent
+with is not evidence of.** Without source, the locus is at least
+pinned to userspace by the byte-identity of the kernel modules
+and the OMCI MIB; the mechanism remains open.
 
 `dmesg | grep -iE "pf_rtk|gem|omci|drop"` is silent on V1.0:
 baseline healthy behaviour produces no kernel error messages. If
