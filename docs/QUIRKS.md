@@ -467,22 +467,41 @@ once the kernel diff is taken into account:
    adds a new SFP application IPC channel and a
    `trtk_gponapp_omci_mirror_set` function (see "Shown empirically"
    above). The data plane on this hardware runs in the **switch
-   fabric**, not in the Linux netdev (V1.0 evidence: `pon0` shows
-   0 packets in `/proc/net/dev` while `br0` shows thousands;
-   the bridge runs in hardware, the kernel only sees frames
-   destined to itself at 192.168.1.1). If the new kernel code
+   fabric**, not in the Linux netdev: on V1.0, `pon0` shows
+   0 packets in `/proc/net/dev` while `br0` shows thousands of
+   bridged frames. The bridge runs in hardware; the kernel only
+   sees frames destined to itself. If the new kernel code
    adjusts how the switch's L2 forwarding table or broadcast/
-   multicast forwarding is programmed -- and a wrong adjustment
-   here would drop unicast at the fabric level before any Linux
-   netdev counter could see it -- the symptom matches exactly.
-   **Test for the next investigator:** boot V1.1.8, run
-   `dmesg | grep -iE "sfp_app|user app|Incorrect state|Unknown chip|trtk_gponapp"`
-   and look for the error strings firing; capture
-   `/proc/lan_sds/lan_sds_debug` after `echo dump_mirror >` and
-   `echo "r 0 256" >`. Then compare to the V1.0 capture in
-   `/tmp/sfp_v1.0_kernel_dataplane.txt`. If any switch-state
-   surface differs and the diff would explain a unicast drop at
-   the fabric, this is the bug.
+   multicast forwarding is programmed, a wrong adjustment would
+   drop unicast at the fabric level before any Linux netdev
+   counter could see it. **Captured evidence supporting this**
+   (back-to-back boots of both firmwares, 2026-05-12,
+   `/tmp/sfp_v1.0_vs_v1.1.8_diff_summary.txt`):
+   - On V1.1.8 the kernel runs a new thread `[sfp_main]` (PID 383)
+     that does not exist on V1.0. This is the kernel worker
+     introduced by lan_sds_main.c.
+   - `/proc/lan_sds/` gains 5 new nodes on V1.1.8 (`dump_eeprom`,
+     `dump_mirror`, `eeprom`, `mirror`, `sfp_app`), all -r--r--r--
+     and all returning 0 bytes on cat. The shell cannot probe
+     them; the kernel uses them as state surfaces internally.
+   - `/proc/rtl8686gmac/dev_port_mapping` shows Port0's carrier
+     reassigned: V1.0 maps it to `pon0.2`, V1.1.8 maps it to
+     `eth0`. Port0 is neither the PON port (2) nor the CPU port
+     (3); it is a switch port whose Linux-side carrier owner the
+     new code reassigns at boot. Carrier mapping by itself
+     doesn't drop packets, but it confirms the new code is
+     reaching into netdev-to-switch-port relationships.
+   - Everything else Linux-visible is identical: `brctl`,
+     `ebtables`, `ifconfig`, `ip link`, `/proc/net/*`, lsmod,
+     /sys/module/, all match between firmwares.
+   The fact that the userspace bridge config is identical while
+   the drop ratio is 30000:1 forces the bug to be somewhere the
+   shell can't see. The new `[sfp_main]` thread is the leading
+   suspect. **What would close it:** dump switch registers via
+   `/proc/rtl8686gmac/hw_reg` on both firmwares (verb not
+   recovered yet -- handler strings show `cmd %s` but no usage
+   message), or get source / decompiled analysis of the new
+   lan_sds_main.c functions in the built-in kernel.
 3. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
    something at runtime that affects the data plane.** Strings
    include `no_send_alarm` and `feature_api_register` hooks across
