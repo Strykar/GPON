@@ -333,7 +333,7 @@ confirmed in ~5 minutes of dumps. Together they conclusively place
 the bug below the OMCI layer, in compiled binary code, with no need
 for source.
 
-### Graveyard of six wrong hypotheses
+### Graveyard of seven wrong hypotheses
 
 Every line below was a load-bearing theory backed by a real
 firmware diff or a real config field. Each ladder rung above
@@ -348,10 +348,11 @@ were generated, with which rung killed them:
 | 4 | `/etc/runlansds.sh` `LAN_SDS_MODE` → `LAN_SPEED_MODE` flash-key rename | Rung 2 (and a direct trace): `config_xmlconfig.sh -b` runs before `runlansds.sh` in `rc3` and writes the new key from `config_default.xml`. Verified live on V1.1.8: `flash get LAN_SPEED_MODE=0`, `/proc/lan_sds/lan_sds_cfg = mode 1(Fiber 1G)` identical to V1.0. Real diff, theoretical trap, doesn't actually trigger. |
 | 5 | EVTO interpretation drift in V1.1.8's rebuilt VLAN-handling `.so` files | Rung 4: OLT-pushed `ExtVlanTagOperCfgData` is byte-identical between V1.0 and V1.1.8 (same 7 INDEX rules, same filters, same treatments). MikroTik already runs Manual → Transparent Mode which bypasses EVTO entirely. |
 | 6 | `CircuitPack.Version` / `SwImage.Active.Version` as the BNG's service-profile discriminator | Rung 3 + spoof test: set `OMCI_SW_VER1=V0.9-spooftest` in NVRAM on V1.0, reboot. WAN delivered 232k unicast frames in 6 min with the fake string advertised in both `CircuitPack.Version` and `SwImage.Active.Version`. The BNG does not key off OMCI-reported firmware version. |
+| 7 | `/bin/sfpapp` packet-redirect callback consuming BNG unicast | Direct STOP test 2026-05-12: booted V1.1.8, captured a 60s RUNNING-arm baseline (ds-gem +10.2k frames, ds-eth Unicast = 0), `kill -STOP 430` confirmed `State: T (stopped)` in `/proc/430/status`, held 300s with sfpapp frozen. STOPPED-arm result: ds-gem +229.7k frames, ds-eth Unicast snapshots `1, 0, 1, 0` -- noise floor, indistinguishable from running. The packet-redirect callback is not the consumer. |
 
 ### Methodology lesson
 
-The six wrong hypotheses were not a parade of careless guesses --
+The seven wrong hypotheses were not a parade of careless guesses --
 each one was load-bearing on a real diff, a real config field, a
 real ME definition, or a real identity mechanism documented in
 G.988. The pattern that produced them is universal to "X changed
@@ -415,8 +416,8 @@ firmwares, the bug must lie in the **translation between them**
 -- something userspace does after OMCI hydration that programs
 the kernel differently, or actively interferes with the data
 plane at runtime. The bug is therefore in userspace, but the
-specific mechanism is not pinned down. Three possibilities,
-ordered by plausibility:
+specific mechanism is not pinned down. Two remaining
+possibilities (a third was tested and refuted; see graveyard #7):
 
 1. **The ME-to-kernel translation in `omci_app` and the feature
    modules produces different kernel configuration for identical
@@ -438,23 +439,24 @@ ordered by plausibility:
    directly), or disassembly of the `_write_proc` / `_read_proc`
    handlers in `omcidrv.ko` to recover the syntax of the
    write-probe-read protocol for forwarding state.
-2. **`/bin/sfpapp` actively filters or consumes data-plane
-   frames.** V1.1.8 ships a new 5 KB binary that registers a
-   packet-redirect callback (`ptk_redirect_userApp_reg`) in the
-   kernel; V1.0 doesn't (the binary is absent, `runlansds.sh`'s
-   `sfpapp &` call was a silent no-op). If its filter is too
-   broad, it intercepts BNG unicast for vendor-control LOID
-   processing and drops or mis-handles it. **Test, not yet run:**
-   `kill -STOP $(pidof sfpapp)` on V1.1.8 and watch
-   `diag gpon show counter global ds-eth | grep Unicast` climb.
-   ~5 min of WAN downtime, fully reversible with `kill -CONT`.
-   Cheapest of the three to run; gated on willingness to boot
-   V1.1.8 again.
-3. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
+2. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
    something at runtime that affects the data plane.** Strings
    include `no_send_alarm` and `feature_api_register` hooks across
    most MIB tables. Plausible but unfalsifiable without
-   instrumentation. Tested only if (1) and (2) come back clean.
+   instrumentation (no `kill -STOP` equivalent for a shared
+   library that `omci_app` has already mmap'd at startup; would
+   need an LD_PRELOAD stub that no-ops its registered handlers,
+   or a rebuilt `omci_app` with the feature module unloaded).
+
+Note on busybox quirk: V1.1.8's busybox ships **without** `pidof`.
+Any script that relies on `kill -STOP $(pidof X)` will silently
+no-op (pidof returns "not found", `$(...)` becomes empty, `kill`
+fails with "you need to specify whom to kill"). Use
+`ps | awk '$NF=="X"{print $1}'` instead. This is how the first
+attempt at the sfpapp test in row 7 of the graveyard table
+appeared to "not change the ratio" -- the STOP never landed. The
+second attempt with direct PID lookup is the one that actually
+froze sfpapp and produced the refutation.
 
 The TCONT / Scheduler / GalEthProf / TrafficDescriptor / Ont2g /
 Anig / EthUni / Unig MEs were captured on V1.0 only
@@ -472,8 +474,9 @@ bytes; `me_00001000.so` added; `mib_ExtendedOnuGZTE.so` added)
 are consistent with a regression but also consistent with a
 benign global rebuild plus a couple of new features. **Consistent
 with is not evidence of.** Without source, the locus is at least
-pinned to userspace by the byte-identity of the kernel modules
-and the OMCI MIB; the mechanism remains open.
+pinned to userspace by the byte-identity of the kernel modules,
+the OMCI MIB, and (after the row-7 graveyard test) by exclusion
+of sfpapp's packet-redirect path. The mechanism remains open.
 
 `dmesg | grep -iE "pf_rtk|gem|omci|drop"` is silent on V1.0:
 baseline healthy behaviour produces no kernel error messages. If
