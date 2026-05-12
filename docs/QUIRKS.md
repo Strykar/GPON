@@ -409,15 +409,38 @@ found a thing that changed, here's how it could matter."
   The symbol is exported but unreferenced. Dead code from a
   partial feature port -- the 3.5 KB size growth is real but
   the new function is unreachable from anything that runs.
+- **The kernel itself is NOT identical between firmwares.**
+  Decompressed `uImage` payloads (LZMA, 2,979,900 bytes each)
+  differ at 2.1 million byte positions. Most of that is
+  address-shift cascade from inserting new code near the start
+  of a built-in driver. The semantic changes, recovered via
+  `strings` set-diff (comm -13 sorted), are tightly bounded:
+  V1.1.8 adds an SFP application IPC channel
+  (`send to user app (%d) fail (%d)`, `sfp_app init failed`,
+  `Incorrect state %u`, `Unknown chip 0x%x`), an EEPROM mirror
+  debug interface on `/proc/lan_sds/lan_sds_debug` with verbs
+  `r <addr> <length>`, `w <addr> <byte_data>`, `dump_eeprom`,
+  `dump_mirror` against `EEPROM Mirror(SRAM)` over `addr: 0~511`,
+  and a kernel function `trtk_gponapp_omci_mirror_set` (no
+  V1.0 equivalent). All new strings reference
+  `drivers/net/rtl86900/sdk/src/module/lan_sds/lan_sds_main.c`.
+  The built-in `re8686_rtl9602c` driver (in `/sys/module/` but
+  not `/proc/modules` -- compiled into vmlinux, not a `.ko`) is
+  the affected module. This **invalidates the earlier claim
+  that "the bug is in userspace because kernel modules are
+  byte-identical"**: the kernel-resident switch-fabric driver
+  *is* different, the loadable `.ko` modules merely sit on top
+  of an interface that may have changed underneath them.
 
-**What this tells us:** if both the kernel data plane AND the
-OMCI MIB state post-hydration are byte-identical between
-firmwares, the bug must lie in the **translation between them**
--- something userspace does after OMCI hydration that programs
-the kernel differently, or actively interferes with the data
-plane at runtime. The bug is therefore in userspace, but the
-specific mechanism is not pinned down. Two remaining
-possibilities (a third was tested and refuted; see graveyard #7):
+**What this tells us:** the loadable kernel modules (`pf_rtk.ko`,
+`omcidrv.ko`) and the OMCI MIB state post-hydration are
+byte-identical, but the built-in `re8686_rtl9602c` / lan_sds
+kernel driver got new code. The bug is therefore in **one of**:
+the new kernel-side switch-fabric code path, the userspace
+translation that feeds it, or an interaction between them.
+sfpapp's packet-redirect callback was tested and refuted
+(graveyard #7). Remaining possibilities, ordered by plausibility
+once the kernel diff is taken into account:
 
 1. **The ME-to-kernel translation in `omci_app` and the feature
    modules produces different kernel configuration for identical
@@ -439,7 +462,28 @@ possibilities (a third was tested and refuted; see graveyard #7):
    directly), or disassembly of the `_write_proc` / `_read_proc`
    handlers in `omcidrv.ko` to recover the syntax of the
    write-probe-read protocol for forwarding state.
-2. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
+2. **The new built-in `re8686_rtl9602c` / lan_sds kernel code
+   programs the switch fabric differently.** V1.1.8's kernel
+   adds a new SFP application IPC channel and a
+   `trtk_gponapp_omci_mirror_set` function (see "Shown empirically"
+   above). The data plane on this hardware runs in the **switch
+   fabric**, not in the Linux netdev (V1.0 evidence: `pon0` shows
+   0 packets in `/proc/net/dev` while `br0` shows thousands;
+   the bridge runs in hardware, the kernel only sees frames
+   destined to itself at 192.168.1.1). If the new kernel code
+   adjusts how the switch's L2 forwarding table or broadcast/
+   multicast forwarding is programmed -- and a wrong adjustment
+   here would drop unicast at the fabric level before any Linux
+   netdev counter could see it -- the symptom matches exactly.
+   **Test for the next investigator:** boot V1.1.8, run
+   `dmesg | grep -iE "sfp_app|user app|Incorrect state|Unknown chip|trtk_gponapp"`
+   and look for the error strings firing; capture
+   `/proc/lan_sds/lan_sds_debug` after `echo dump_mirror >` and
+   `echo "r 0 256" >`. Then compare to the V1.0 capture in
+   `/tmp/sfp_v1.0_kernel_dataplane.txt`. If any switch-state
+   surface differs and the diff would explain a unicast drop at
+   the fabric, this is the bug.
+3. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
    something at runtime that affects the data plane.** Strings
    include `no_send_alarm` and `feature_api_register` hooks across
    most MIB tables. Plausible but unfalsifiable without
@@ -447,6 +491,7 @@ possibilities (a third was tested and refuted; see graveyard #7):
    library that `omci_app` has already mmap'd at startup; would
    need an LD_PRELOAD stub that no-ops its registered handlers,
    or a rebuilt `omci_app` with the feature module unloaded).
+   Tested only if (1) and (2) come back clean.
 
 Note on busybox quirk: V1.1.8's busybox ships **without** `pidof`.
 Any script that relies on `kill -STOP $(pidof X)` will silently
@@ -467,21 +512,29 @@ A future investigator running rung 4 on V1.1.8 should add these
 captures to the diff; if any of them deviates, the locus story
 shifts back upward.
 
-**What we have NOT shown:** that any specific userspace component
-is the bug. The userspace differences we found (`omci_app` is
-1.5 KB larger; every `/lib/features/internal/*.so` grew by 99-259
-bytes; `me_00001000.so` added; `mib_ExtendedOnuGZTE.so` added)
-are consistent with a regression but also consistent with a
-benign global rebuild plus a couple of new features. **Consistent
-with is not evidence of.** Without source, the locus is at least
-pinned to userspace by the byte-identity of the kernel modules,
-the OMCI MIB, and (after the row-7 graveyard test) by exclusion
-of sfpapp's packet-redirect path. The mechanism remains open.
+**What we have NOT shown:** which specific component is the bug.
+The userspace differences (`omci_app` is 1.5 KB larger; every
+`/lib/features/internal/*.so` grew by 99-259 bytes;
+`me_00001000.so` added; `mib_ExtendedOnuGZTE.so` added) and the
+kernel difference (new lan_sds_main.c functions described above)
+are each consistent with a regression but also consistent with
+a benign rebuild plus a couple of new features. **Consistent
+with is not evidence of.** Without source, the locus is bounded
+by exclusion: not in `pf_rtk.ko` (text-identical), not in
+`omcidrv.ko` (1-byte `.rodata` shift), not in sfpapp's
+packet-redirect callback (STOP test refutation), not in the
+post-hydration OMCI MIB state (byte-identical). What's left is
+the omci_app -> kernel translation, the new lan_sds kernel code,
+and the new `me_00001000.so` feature module -- in roughly that
+order of plausibility.
 
 `dmesg | grep -iE "pf_rtk|gem|omci|drop"` is silent on V1.0:
 baseline healthy behaviour produces no kernel error messages. If
 anyone retries V1.1.8 in the future, the V1.1.8 dmesg should be
-the next capture; any output is a signal.
+the next capture; the new kernel strings (`send to user app`,
+`Incorrect state %u`, `Unknown chip 0x%x`, `sfp_app init failed`)
+are also worth grepping for -- any of those firing is a direct
+signal that the new lan_sds path is malfunctioning.
 
 ### Spoofable OMCI identity, and why it mattered here
 
