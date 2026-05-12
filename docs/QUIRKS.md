@@ -241,7 +241,7 @@ The SFP carries TWO firmware images in flash and can boot from either,
 selected by the bootloader at every boot. The MTD layout (from `cat
 /proc/mtd`):
 
-```
+```text
 mtd0  "boot"    256K  u-boot
 mtd1  "env"     8K    bootloader env (primary)
 mtd2  "env2"    8K    bootloader env backup
@@ -260,7 +260,7 @@ pick a slot is `sw_commit`, not `sw_active`.** `sw_active` is a *status*
 variable -- the bootloader writes it during boot to reflect which slot
 actually got loaded. From `mtd1`:
 
-```
+```text
 boot_by_commit=if itest.s ${sw_commit} == 0;then run set_act0;run b0;else run set_act1;run b1;fi
 ```
 
@@ -327,37 +327,100 @@ The `libomci_api.so`, `libomci_mib.so`, `libomci_fal.so`, and
 V1.1.8. The OMCI infrastructure didn't change. The changes are in the
 omci_app daemon and the new per-ME plugins.
 
-### Prime suspect: GPON `mac_check` / `mackeyVerify`
+### Root cause: `/etc/runlansds.sh` flash-key rename, upgrade-preserve trap
 
-Strings in V1.1.8's `omci_app` include:
+Diffing `/etc/runlansds.sh` between the two SFU firmwares:
 
+```diff
+ #!/bin/sh
+
+-lan_sds_mode=`flash get LAN_SDS_MODE | sed 's/LAN_SDS_MODE=//g'`
++lan_sds_mode=`flash get LAN_SPEED_MODE | sed 's/LAN_SPEED_MODE=//g'`
+ echo $lan_sds_mode > proc/lan_sds/lan_sds_cfg
+ echo 1 > proc/lan_sds/sfp_app
+ sfpapp &
 ```
-echo 1 > /tmp/mackeyVerify
-echo 0 > /tmp/mackeyVerify
-GPON mac_check fail !!!!!!
-onuMac:%2x:%2x:%2x:%2x:%2x:%2x
+
+That script programs the **host-side SerDes** -- the electrical link
+between the SFP stick and the router's SFP cage. It runs from
+`/etc/init.d/rc3` on every boot. The OEM renamed the flash key
+(`LAN_SDS_MODE` → `LAN_SPEED_MODE`), most likely to allow distinct
+GPON vs EPON speed modes, and updated `/etc/config_default.xml` to
+write the new key on a fresh install. But on an **upgrade with
+preserved config**, the old `LAN_SDS_MODE` value rides through
+untouched in NVRAM while `LAN_SPEED_MODE` is never set. `flash get
+LAN_SPEED_MODE` returns nothing, so `$lan_sds_mode` evaluates to the
+empty string, and the script writes a bare newline to
+`/proc/lan_sds/lan_sds_cfg`. The kernel module (`pf_rtk.ko`) falls
+through to its compile-time default -- almost certainly SGMII
+auto-negotiation -- which does not match what an RB5009's
+`sfp-sfpplus*` port expects from this stick under the previous
+config. The host-side link comes up cosmetically (light, SGMII
+auto-neg "completes") but does not pass frames cleanly to the
+router.
+
+The optical front-end is programmed via a completely separate path
+(`rtkbosa` loads BOSA calibration in `rc3`, the GPON MAC handles
+ranging with the OLT over fibre). None of that touches the
+host-side SerDes. That is why `gpon_onu_state = 5` and all alarms
+read clear even though the WAN is broken end-to-end.
+
+### Workaround: stay on V1.1.8 without rollback
+
+On the new firmware, with no reboot needed:
+
+```sh
+flash get LAN_SDS_MODE        # old value, should still be present
+flash get LAN_SPEED_MODE      # likely empty / missing
+cat /proc/lan_sds/lan_sds_cfg # current applied mode
+
+# Apply the old value live to test:
+echo <value-from-LAN_SDS_MODE> > /proc/lan_sds/lan_sds_cfg
+# Bounce the host-side link or ifdown/ifup on the router, recheck the BNG.
+
+# Persist:
+flash set LAN_SPEED_MODE=<value>
+reboot
 ```
 
-V1.0's `omci_app` contains **zero references** to `mackeyVerify` or
-`mac_check fail`. The HGU V1.7.1 build also has zero references; HGU
-V1.1.4 has two `mackeyVerify` references (so it's not exclusive to
-V1.1.8, but V1.0 SFU definitely lacks it).
+This is the actual fix for V1.1.8 -- rollback isn't necessary if
+you'd rather keep the newer firmware. The same trap will catch
+anyone else who upgrades from V1.0-220923 with config preservation
+and expects host-side link to keep working.
 
-The verification almost certainly uses the `MAC_KEY` value in NVRAM
-(visible via `mib show hs`, a 32-hex-character secret set at factory
-provisioning). The plausible failure mode on the affected deployment:
-V1.1.8 expects `MAC_KEY` to match a value computed from some OLT-side
-input; the user's factory-installed `MAC_KEY` was provisioned to work
-with V1.0's flow and doesn't satisfy V1.1.8's new check; the daemon
-writes `mackeyVerify=0`; downstream OMCI provisioning gates upper-layer
-service profiles on that flag; PPPoE/IPoE never get the service
-profile and fail at the BNG.
+### Other V1.1.8 diff items worth knowing (but not the breakage)
 
-This is a hypothesis based on string evidence, not a confirmed
-mechanism -- we don't have an OMCI protocol trace from the broken
-boot. But it's the strongest single candidate from the available
-evidence and explains all the symptoms (PHY-layer activates fine,
-upper layers refuse).
+- **`config_default.xml`**: `OMCI_CUSTOM_RDP` default flipped 4 → 0.
+  Only affects fresh installs; preserved MIB keeps your old value
+  through an upgrade.
+- **BOSA load moved from rc32 to rc3**, replacing the hard-coded
+  `rtkbosa -c /var/config/rtl-3320-backup.bin` call with the new
+  `/etc/scripts/rtkbosa.sh` that picks `rtkbosa_gpon_k.bin` vs
+  `rtkbosa_epon_k.bin` from `/var/config` based on `mib get PON_MODE`.
+- **`/lib/omci/mib_ExtendedOnuGZTE.so`** added. Registers a
+  proprietary `MIB_TABLE_EXTENDED_ONU_G_ZTE_INDEX` table via
+  `MIB_Proprietary_Reg`. The standard `EXTENDED_ONU_G_INDEX` table
+  is still registered too -- this is additive, not overriding.
+- **`/bin/sfpapp`** added. 5 KB Realtek "packet-redirect" agent
+  that lets the host inject LOID/PASSWORD over the SFP electrical
+  link via vendor-control frames. Runs `flash set LOID`,
+  `omcicli set loid`, `flash default cs` in response to control
+  packets, and registers a kernel packet-redirect callback
+  (`ptk_redirect_userApp_reg`). Strings suggest a narrow vendor
+  ethertype, not arbitrary VLAN-100 traffic -- so unlikely to
+  interfere with normal data plane, but worth keeping in mind as
+  a secondary suspect if the LAN_SPEED_MODE fix doesn't restore
+  traffic.
+- **`/lib/features/internal/me_00001000.so`** added. Internal
+  feature module that includes a `no_send_alarm` string. Earlier
+  drafts of this document hypothesised this was the breaker;
+  it isn't. The breaker is the `runlansds.sh` shell-script diff
+  above.
+- **`omci_app` strings** include new `GPON mac_check` /
+  `mackeyVerify` code paths and expanded IoT-VLAN provisioning
+  (`-iot_pri1..4` / `-iot_vid1..4`). These are real V1.1.8
+  additions but unrelated to the LAN-side SerDes failure observed
+  on this deployment.
 
 ### Things I claimed earlier that turned out to be wrong
 
@@ -372,8 +435,8 @@ Previous revisions of this document said:
    runtime config-state error, not a missing file.
 2. **"`omcicli mib get/getcurr ignores its argument and always dumps
    the table directory."**  This was only true while the SFP was in
-   pre-O5 / broken-activation state. In O5, `omcicli mib get <name>`
-   and `omcicli mib getcurr <classId> <entityId>` both work fine on
+   pre-O5 / broken-activation state. In O5, `omcicli mib get NAME`
+   and `omcicli mib getcurr CLASSID ENTITYID` both work fine on
    V1.0-220923. Verified empirically post-rollback.
 3. **"`omcicli get sn` is broken on V1.0-220923; the collector parses
    the SN from `ps`."**  Works fine on V1.0 in O5: `omcicli get sn`
