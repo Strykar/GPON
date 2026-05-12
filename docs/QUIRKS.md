@@ -384,14 +384,30 @@ found a thing that changed, here's how it could matter."
   wildcard difference in `PrivateVlanCfg.ManualTagVid` (65535
   vs 0; `ManualMode=0` on both, so the value is moot).
 - Offline diff of `pf_rtk.ko` (the 120 KB data-plane bridge
-  module) via `strings -a` + filtered `readelf -s`: byte-identical
-  strings (1541 each, same set), byte-identical symbol table
-  (884 each, only difference is compiler-generated `__func__.NNNN`
-  counter suffixes that always differ between builds). The kernel
-  data plane module is NOT the bug.
-- Offline diff of `omcidrv.ko` (the 109 KB OMCI driver): also
-  byte-identical strings, also byte-identical symbol table.
-  Not the bug.
+  module): instruction stream is **identical** between V1.0 and
+  V1.1.8. `objdump -dr` diff produces 0 hunks. The 60 differing
+  bytes total are all localised to `.strtab` as compiler
+  `__func__.NNNN` counter increments (e.g. `__func__.44472` →
+  `__func__.44474`) that bump on every rebuild. The kernel data
+  plane module is NOT the bug.
+- Offline diff of `omcidrv.ko` (the 109 KB OMCI driver): 1
+  differing byte total, at offset 0x197DD in `.rodata` (0x67
+  → 0x71). Almost certainly a build-stamp character. Disasm
+  identical. Not the bug.
+- Offline diff of `librtk.so` (universal Realtek DAL library
+  linked by every userspace component): V1.1.8 is 3548 bytes
+  larger and exports exactly one new dynamic symbol,
+  `dal_rtl9602c_switch_l2_broadcast_macAddr_init` ("dal" =
+  Driver Abstraction Layer; rtl9602c = the switch ASIC; the
+  function name claims to initialise L2 broadcast MAC handling
+  on the switch fabric). XREF check across the entire V1.1.8
+  rootfs: zero binaries reference the symbol as an undefined
+  import, zero binaries contain its name as a string outside
+  librtk's own `.dynstr`, zero internal callers inside librtk.so
+  itself (no jal/bal to its address, no relocation entries).
+  The symbol is exported but unreferenced. Dead code from a
+  partial feature port -- the 3.5 KB size growth is real but
+  the new function is unreachable from anything that runs.
 
 **What this tells us:** if both the kernel data plane AND the
 OMCI MIB state post-hydration are byte-identical between
@@ -405,32 +421,49 @@ ordered by plausibility:
 1. **The ME-to-kernel translation in `omci_app` and the feature
    modules produces different kernel configuration for identical
    MEs.** `omci_app` hydrates the MIB and configures the kernel
-   via ioctls into `pf_rtk` or writes under `/proc/omci/`. If
-   V1.1.8 interprets one of the identical MEs differently and
-   writes a different forwarding / filter rule, you get identical
-   OMCI state but different data-plane behaviour. **Test for the
-   next investigator:** dump `/proc/omci/*` post-hydration on
-   both versions and diff. V1.0 baseline saved at
-   `/tmp/sfp_v1.0_proc_baseline.txt` (captured 2026-05-12). Note:
-   the proc nodes are write-probe-read with an unknown verb
-   vocabulary; plain `cat` returns empty. Reverse-engineering
-   `omci_app` for the verb list is the gating step before any
-   meaningful diff is possible.
+   via ioctls into `pf_rtk`. If V1.1.8 interprets one of the
+   identical MEs differently and writes a different forwarding /
+   filter rule, you get identical OMCI state but different
+   data-plane behaviour. **Status of the obvious test:** `/proc/omci/*`
+   is not a usable comparison surface. Every node returns 0 bytes
+   on plain `cat` on a healthy V1.0 in O5 with WAN up
+   (`/tmp/sfp_v1.0_proc_omci_healthy.txt`), not just on a broken
+   V1.1.8. And no userspace binary in either rootfs references
+   the path -- grepped every file under `bin/`, `sbin/`, `lib/`,
+   `usr/`, `etc/`; only `omcidrv.ko` mentions `/proc/omci`. The
+   nodes are populated only on write-trigger, but no in-tree
+   userspace component issues that trigger. **What an actual
+   test of H1 needs:** either ftrace on the `omcidrv_wrapper_*`
+   functions during OMCI hydration (compares kernel-side actions
+   directly), or disassembly of the `_write_proc` / `_read_proc`
+   handlers in `omcidrv.ko` to recover the syntax of the
+   write-probe-read protocol for forwarding state.
 2. **`/bin/sfpapp` actively filters or consumes data-plane
    frames.** V1.1.8 ships a new 5 KB binary that registers a
    packet-redirect callback (`ptk_redirect_userApp_reg`) in the
    kernel; V1.0 doesn't (the binary is absent, `runlansds.sh`'s
    `sfpapp &` call was a silent no-op). If its filter is too
    broad, it intercepts BNG unicast for vendor-control LOID
-   processing and drops or mis-handles it. **Test:**
+   processing and drops or mis-handles it. **Test, not yet run:**
    `kill -STOP $(pidof sfpapp)` on V1.1.8 and watch
    `diag gpon show counter global ds-eth | grep Unicast` climb.
    ~5 min of WAN downtime, fully reversible with `kill -CONT`.
+   Cheapest of the three to run; gated on willingness to boot
+   V1.1.8 again.
 3. **`/lib/features/internal/me_00001000.so` (new in V1.1.8) does
    something at runtime that affects the data plane.** Strings
    include `no_send_alarm` and `feature_api_register` hooks across
    most MIB tables. Plausible but unfalsifiable without
    instrumentation. Tested only if (1) and (2) come back clean.
+
+The TCONT / Scheduler / GalEthProf / TrafficDescriptor / Ont2g /
+Anig / EthUni / Unig MEs were captured on V1.0 only
+(`/tmp/sfp_v1.0_traffic_mes.txt`). V1.1.8 equivalents not
+captured because the WAN-down cost of another V1.1.8 boot was
+judged too high once rungs 1-3 had pinned the locus below OMCI.
+A future investigator running rung 4 on V1.1.8 should add these
+captures to the diff; if any of them deviates, the locus story
+shifts back upward.
 
 **What we have NOT shown:** that any specific userspace component
 is the bug. The userspace differences we found (`omci_app` is
@@ -447,24 +480,32 @@ baseline healthy behaviour produces no kernel error messages. If
 anyone retries V1.1.8 in the future, the V1.1.8 dmesg should be
 the next capture; any output is a signal.
 
-### Sub-finding: ONU identity is fully spoofable from userspace
+### Spoofable OMCI identity, and why it mattered here
 
-Useful capability to preserve from the investigation: the chain
-`OMCI_SW_VER1` NVRAM key (config store) → `CircuitPack.Version`
-(both 0x101 and 0x106 bridge-port entities) → `SwImage.Active.Version`
-is **userspace-controllable end-to-end** via the web UI Settings
-page, or `mib set OMCI_SW_VER1=...` + reboot. On a fresh V1.0 boot
-with `OMCI_SW_VER1=V0.9-spooftest`, the OMCI MIB advertised that
-fake string to the OLT through three different MEs simultaneously,
-and WAN service continued normally (the spoof test that refuted
-hypothesis 6).
+The chain `OMCI_SW_VER1` NVRAM key (config store) →
+`CircuitPack.Version` (both 0x101 and 0x106 bridge-port entities)
+→ `SwImage.Active.Version` is **userspace-controllable end-to-end**
+via the web UI Settings page, or `mib set OMCI_SW_VER1=...` +
+reboot. On a fresh V1.0 boot with `OMCI_SW_VER1=V0.9-spooftest`,
+the OMCI MIB advertised that fake string to the OLT through three
+different MEs simultaneously, and WAN service continued normally.
 
-The auto-derived SwImage one might expect (read from actual flash
-partitions under `/proc/mtd`) does not exist on this firmware.
-What's reported via OMCI for slot 0's running version comes from
-NVRAM config, not from the slot's actual binary. Useful capability
-for any future "the BNG decides who I am based on what I advertise"
-debugging on this hardware family, even though it did not help here.
+This was the cleanest counter-evidence in the whole investigation.
+"The BNG keys off the advertised firmware version" is a structurally
+attractive theory for any service-profile-related break: it explains
+why one firmware works and another doesn't, it matches the way some
+operator BNGs do gate on vendor identity, and it's hard to falsify
+without modifying the identity at the source. The NVRAM-controlled
+spoof made it a 6-minute experiment instead of an unfalsifiable
+worry, and ruled out the entire identity-keying class of theories
+in one shot.
+
+The auto-derived `SwImage.Version` one might expect (read from
+actual flash partitions under `/proc/mtd`) does not exist on this
+firmware. What's reported via OMCI for slot 0's running version
+comes from NVRAM config, not from the slot's actual binary.
+Capability worth preserving for any future "the BNG decides who
+I am based on what I advertise" debugging on this hardware family.
 
 ### Operational guidance
 
@@ -474,14 +515,14 @@ downstream unicast at the GEM-to-Ethernet path inside the ONU. WAN
 does not work. V1.0-220923 on the same hardware against the same
 BNG works without issue.
 
-**Untested claim, plausible**: V1.1.8's `pf_rtk.ko` / userspace OMCI
-stack regression may not exercise on every OLT vendor's traffic
-patterns. A different OLT might use different GEM port numbers,
-priority mappings, or VLAN handling that doesn't hit whatever code
-change broke. Discord users have reported V1.1.6-240202 working on
-a different OLT vendor entirely. Whether V1.1.8 universally breaks
-against all OLTs, or specifically against ALCL-pattern OLTs, would
-need data points from other deployments.
+**Datapoints from elsewhere, not verified here**: a Discord user
+reported V1.1.6-240202 working on a different OLT vendor entirely.
+That's a useful bisection candidate (the regression may have
+landed between V1.1.6 and V1.1.8), but it has not been tested on
+our ALCL/Airtel BNG, and a different OLT vendor changes too many
+variables to draw a clean conclusion about V1.1.6 here. If anyone
+runs V1.1.6 on an ALCL OLT, the diagnostic ladder above will
+classify it in the first 5 minutes.
 
 For this deployment, stay on V1.0-220923. If you must test a newer
 firmware, run the diagnostic ladder above within the first 5 minutes
