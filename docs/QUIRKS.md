@@ -607,6 +607,166 @@ under "Dual-slot firmware images and rollback") gives a fast path
 back: `nv setenv sw_commit OTHER_SLOT && reboot`, or the web UI's
 image-switch button if the SFP is responsive.
 
+## OLT-pushed VLAN provisioning (Airtel/ALCL BNG)
+
+What the BNG pushes via OMCI at provisioning. This is static for
+the life of an ONU registration (only re-pushed on activation, OLT
+reprovisioning, or firmware swap). Captured by `omcicli mib get`
+on a healthy V1.0-220923 boot. Reproduce with `omcicli mib get 84`
+(`VlanTagFilterData`, ME 84) and `omcicli mib get 171`
+(`ExtVlanTagOperCfgData`, ME 171) — the two MEs that hold the
+operator's VLAN intent.
+
+VlanTagFilterData (ME 84): two entries, accept tagged frames on
+VID 100 and VID 660 with `FwdOp 0x10` (forward all matching tagged
+frames, drop everything else):
+
+```text
+EntityID: 0x01   FilterTbl[0]: PRI 0, CFI 0, VID 100   FwdOp: 0x10
+EntityID: 0x02   FilterTbl[0]: PRI 0, CFI 0, VID 660   FwdOp: 0x10
+```
+
+VLAN 100 is the Internet (PPPoE + IPoE-static) service; VLAN 660 is
+the VoIP service.
+
+ExtVlanTagOperCfgData (ME 171), EntityID 0x601: a 7-row VLAN tag
+operations table covering downstream untag and upstream tagging
+for both services. Inner filter `VID 4096` means "match any VID";
+`TPID 0` means "match any TPID". Treatment `RemoveTags 1` strips
+the outer tag downstream; `Treatment Inner ... TPID 2` re-adds the
+outer tag upstream.
+
+```text
+INDEX 0  Out PRI 8 VID 660 / In any        -> remove 1 outer tag,   add VID 660 TPID 2 inner
+INDEX 1  Out any         / In PRI 8 VID 660 -> remove 1 outer tag,   add VID 660 TPID 2 inner
+INDEX 2  Out PRI 8 VID 100 / In any        -> remove 1 outer tag,   add VID 100 TPID 2 inner
+INDEX 3  Out any         / In PRI 8 VID 100 -> remove 1 outer tag,   add VID 100 TPID 2 inner
+INDEX 4..6  catch-all and inner-double-tag handling, all `RemoveTags 3`
+```
+
+The full raw output of both MEs is preserved in
+`gpon_investigation_2026-05-12/sfp_v1.0_vlan_state_full.txt`
+(the artifact bundle this investigation produced).
+
+**Why it's here**: a future "WAN broke after the OLT did a
+provisioning push" debug session wants this baseline to diff
+against. `diff <captured-now> <captured-during-incident>` localises
+whether the OLT changed VLAN intent. The VLAN config is also a
+reference for anyone setting up an upstream MikroTik / OpenWrt to
+match: tag the WAN handoff on VID 100 for PPPoE/IPoE-static, VID
+660 for VoIP, drop everything else.
+
+**Why it's not graphed in the dashboard**: this is OMCI-pushed
+configuration, not a time series. It changes essentially never
+during normal operation. The right place is documentation (here),
+not a live panel. A future exporter could detect changes to ME 84
+or ME 171 and emit a Grafana annotation; that would be the only
+dashboard-relevant case.
+
+## omcicli MIB classes exposed on this hardware
+
+`omcicli mib get N` reads the live OMCI MIB state for ITU-T G.988 ME
+class `N`. Not every class is instantiated on every ONU -- what shows
+up is a function of what the OLT pushes plus the chip's own static
+configuration. A walk of the canonical RTL960x curated list (76 MEs,
+sourced from [Anime4000/RTL960x OMCI_CLI.md](https://github.com/Anime4000/RTL960x/blob/main/Docs/OMCI_CLI.md))
+on V1.0-220923, healthy, post-O5, against an ALCL/Airtel BNG:
+
+- **38 classes** return populated entities
+- **36 classes** are instantiated but empty (header but no `EntityID` lines)
+- **3 classes** return nothing at all
+
+Full per-class output preserved at
+`gpon_investigation_2026-05-12/sfp_omci_walk.txt` (105 KB).
+
+### Populated (38 classes, grouped by purpose)
+
+| MEs | Purpose |
+|---|---|
+| 2 OntData, 5 Cardholder, 6 CircuitPack, 7 SWImage, 256 Ontg, 257 Ont2g | Identity, version, slot inventory |
+| 11 EthUni, 83 LctUni, 264 Unig | Ethernet UNI termination points |
+| 45 MacBriServProf, 47 MacBriPortCfgData, 49 MacBridgePortFilterTable, 50 MacBriPortBriTblData, 79 MacBridgePortFilterPreassign | MAC bridge plane (service profile, port config, filter tables) |
+| 84 VlanTagFilterData, 130 Map8021pServProf, 171 ExtVlanTagOperCfgData | VLAN: tag filter + 802.1p remap + tag operations (see "OLT-pushed VLAN provisioning" above) |
+| 262 Tcont (**16 entities**), 263 Anig, 266 GemIwTp, 268 GemPortCtp, 272 GalEthProf | PON-side: T-CONTs, ANI-G, GEM interworking termination points, GEM port network CTPs, GAL Ethernet profile |
+| 277 PriQ (**208 entities**), 278 Scheduler (**16 entities**) | QoS plane: 208 priority queues + 16 schedulers (largest single contributor to the walk file by size) |
+| 158 OnuRemoteDebug, 287 Omci, 329 VEIP, 340 TR069ManageServer | Management / debug surfaces |
+| 309 McastOperProf, 310 McastSubConfInfo | Multicast operation profile + subscriber config (IPTV-relevant; Airtel pushes these even though we don't subscribe) |
+| 131 OltG, 133 OnuPwrShedding, 134 IpHostCfgData, 253 LoopDetect, 255 PrivateTellionOntStatistics | Misc system: OLT-G (vendor info), power shedding, IP host config, loop detection, vendor PM |
+| 65294 ZteSntp, 65527 OLTLocationConfigData, 65530 LoIdAuth | Vendor extensions (65xxx range, outside G.988 standard) |
+
+### Instantiated but empty (36 classes)
+
+Class exists on this firmware, but no entity is configured -- features
+the chip supports but this deployment doesn't use. Useful negative
+information when chasing "is there an entity for X?" questions:
+
+```
+24 EthPmHistoryData                     52 MacBridgePortPmMonitorHistoryData
+78 VlanTagOpCfgData                     89 EthPmData2
+136 TcpUdpCfgData                       137 NetworkAddress
+148 AuthSecMethod                       157 LargeString
+240 OntSystemMgmt                       244 OntSelfLoopDetect
+245 HSQDefault                          248 WANConfigCata
+249 WANConfigCataDeti                   250 ExtIpHostCfgData
+267 GemPortPmhd                         273 ThresholdData1
+274 ThresholdData2                      280 TrafficDescriptor
+281 MultiGemIwTp                        284 PseudowireMaintenanceProfile
+296 EthPmData3                          298 Dot1RateLimiter
+307 LargeString                         308 GeneralPurposeBuffer
+311 McastSubMonitor                     312 FecPmhd
+321 EthPmDataDs                         322 EthPmDataUs
+330 GenericStatusPortal                 334 EthExtPmData
+341 GpncPmhd                            65282 ZteMcastTag
+65408 ExtendedOnuG                      65528 CTCOnuOnuLoopDetection
+65529 OnuCapability                     65531 ExtendedMcastOperProf
+```
+
+Notable that all the PM-history MEs (24 `EthPmHistoryData`, 89 `EthPmData2`,
+267 `GemPortPmhd`, 296/321/322 Eth*PmData*, 312 `FecPmhd`, 341 `GpncPmhd`)
+are instantiated-but-empty rather than populated. The chip's PM
+counters aren't being kept here -- our collector relies on the
+`diag gpon show counter` interface (post-O5 cumulative counters) for
+that data instead. Worth noting that this is a *vendor choice* on this
+firmware build, not a G.988 protocol omission.
+
+### Returns nothing (3 classes)
+
+- **53 POTS UNI** -- no telephony hardware on the stick
+- **74 KeepaliveTcaThr** -- threshold not configured
+- **138 VoipCfgData** -- no VoIP service. Confirms that ME 84's VID 660
+  is **IPoE-static**, not VoIP, on this Airtel deployment, despite
+  vendor docs typically using VID 660 as a VoIP example
+
+### How to reproduce the walk
+
+The walk runs cleanly only when nothing else holds the SFP's single SSH
+slot. The exporter (`odi.service`) takes one slot each fetch; stop it
+first. On the SFP side, dropbear refuses new connections with
+`Connection reset by peer` if MaxStartups is hit -- power-cycle to
+clear that wedge (same recovery shape as the omci_app wedge documented
+earlier).
+
+```sh
+sudo systemctl stop odi
+sshpass -p "$ONU_SSH_PASSWORD" ssh admin@192.168.1.1 \
+  'for ME in 2 5 6 7 11 24 45 47 49 50 52 53 74 78 79 83 84 89 130 131 \
+   133 134 136 137 138 148 157 158 171 240 244 245 248 249 250 253 255 \
+   256 257 262 263 264 266 267 268 272 273 274 277 278 280 281 284 287 \
+   296 298 307 308 309 310 311 312 321 322 329 330 334 340 341 65282 \
+   65294 65408 65527 65528 65529 65530 65531; do \
+     echo "=====MEBEGIN $ME====="; \
+     omcicli mib get $ME 2>&1; \
+     echo "=====MEEND====="; \
+     sleep 0.4; \
+   done'
+sudo systemctl start odi
+```
+
+The 76-ME list is the curated set that returns data on the RTL960x
+family of GPON SFP+ sticks per the Anime4000 reference. A blind 1..400
+walk surfaces the same data while burning ~5x more SFP CPU and risking
+the dropbear wedge above.
+
 ## /stats.asp and the boa HTTP server
 
 - The vendor's web UI is served by `boa` on port 80, embedding HTML pages
