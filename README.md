@@ -9,8 +9,9 @@ This repo ships:
 - **`dashboard.json`** -- a Grafana dashboard that visualises those
   metrics: optical readings, alarms, ONU state, FEC/BIP/PLOAM/BWMAP
   counters, and collector self-health.
-- **`firmware/`** -- the four known M110 SFU and M114/V1.1.3 HGU firmware
-  tarballs, mirrored on the [Releases](https://github.com/Strykar/GPON/releases) page.
+- **firmware tarballs** -- the four known M110 SFU and M114/V1.1.3 HGU
+  builds, published on the [Releases](https://github.com/Strykar/GPON/releases)
+  page (not in the repo itself).
 - **`docs/`** -- the SFP spec sheet, user manual, an EPON/GPON activation
   paper, plus [QUIRKS](docs/QUIRKS.md), [COVERAGE](docs/COVERAGE.md),
   [TROUBLESHOOTING](docs/TROUBLESHOOTING.md), and [MIGRATION](docs/MIGRATION.md).
@@ -202,9 +203,15 @@ Two compose files ship with the repo:
 | `docker-compose.yml` | Exporter + Prometheus + Grafana (dashboard auto-provisioned) | You don't already run observability infra. Open `http://localhost:3000` after `up`. |
 | `docker-compose.exporter-only.yml` | Just the exporter | You already have Prometheus + Grafana and want to wire this exporter into them. |
 
-Both pull `ghcr.io/strykar/gpon-exporter:latest` and fall back to building
-from local source if the image isn't present. Locally tested with podman
-5.8.2 + podman-compose; the docker path is the same syntax.
+Both pull `ghcr.io/strykar/gpon-exporter:latest` (multi-arch, amd64 +
+arm64). Hacking on the exporter? `docker compose build` rebuilds the
+image from your checkout. Locally tested with podman 5.8.2 +
+podman-compose; the docker path is the same syntax.
+
+The full stack must run from a clone of the repo -- it mounts
+`dashboard.json` and the `compose/` directory from the checkout. The
+exporter-only file has no such mounts; it only needs a `.env` (or the
+same variables exported in your shell) next to it.
 
 **Full stack (recommended for first-time users):**
 
@@ -230,12 +237,13 @@ docker compose -f docker-compose.exporter-only.yml up -d
 ```
 
 The container's `HEALTHCHECK` (pulls `/metrics`, marks unhealthy on
-failure) only takes effect when the image is built with the docker
-manifest format. Docker uses that format by default; podman defaults to
-OCI and silently ignores `HEALTHCHECK`. To honour it under podman, build
-with `podman build --format docker -t gpon-exporter:latest .` first, then
-bring the stack up. Without that flag the exporter still runs fine, you
-just don't get healthy/unhealthy status in `podman ps`.
+failure) ships in the published image: BuildKit stores it even in the
+OCI image format, so docker reports healthy/unhealthy out of the box.
+The caveat is for local rebuilds under podman, whose default OCI format
+silently drops `HEALTHCHECK` at build time. Rebuild with
+`podman build --format docker -t gpon-exporter:latest .` to keep it.
+Without it the exporter still runs fine, you just don't get
+healthy/unhealthy status in `podman ps`.
 
 **Both compose files are single-device.** Multiple SFPs need either
 `docker compose -p` (or `podman compose -p`) per device with separate
