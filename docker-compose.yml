@@ -14,9 +14,8 @@
 
 services:
   gpon-exporter:
-    # Pulls the published image. Until v1.1 ships to ghcr.io, this will
-    # fail to pull -- run `docker compose build gpon-exporter` first to
-    # build from local source.
+    # Published image; `docker compose build gpon-exporter` rebuilds it
+    # from the local checkout instead.
     image: ghcr.io/strykar/gpon-exporter:latest
     build: .
     container_name: gpon-exporter

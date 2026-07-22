@@ -31,10 +31,16 @@ If you don't already run Prometheus + Grafana, the fastest path is the
 bundled compose stack:
 
 ```sh
+git clone https://github.com/Strykar/GPON.git
+cd GPON
 cp .env.example .env             # fill in ONU_SSH_PASSWORD
-docker compose up -d --build     # --build only needed pre-1.1
+docker compose up -d
 open http://localhost:3000       # admin / admin, dashboard already loaded
 ```
+
+The clone matters: the compose stack mounts `dashboard.json` and the
+`compose/` directory from the checkout, so downloading
+`docker-compose.yml` on its own won't work.
 
 That brings up exporter + Prometheus + Grafana with the dashboard
 auto-provisioned. See [Docker / Podman](#docker--podman) for the
@@ -249,11 +255,6 @@ systemctl --user start gpon-exporter prometheus grafana
 Use `/etc/containers/systemd/` and the system-wide systemctl for a
 root install. Re-run `podlet` after any change to the compose file --
 the conversion is mechanical, so don't hand-edit the generated units.
-
-> Pre-1.1 note: `ghcr.io/strykar/gpon-exporter` is published on tag.
-> Until v1.1.0 ships, run `docker compose up -d --build` (or
-> `docker compose build` first) to build from local source. After 1.1
-> publishes, plain `docker compose up -d` pulls the image directly.
 
 ### Proxmox (LXC)
 
