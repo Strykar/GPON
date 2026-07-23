@@ -67,9 +67,8 @@ AmbientCapabilities=
 
 # --- ExecStart ---------------------------------------------------------
 # The exporter needs paramiko >=3.0,<5 (docs/QUIRKS.md "Legacy SSH
-# crypto"). If your distro's python3-paramiko is 5.x (Arch as of
-# mid-2026), point the interpreter at a venv instead, e.g.
-# /opt/GPON/.venv/bin/python3.
+# crypto"). If your distro packages paramiko 5, point the interpreter
+# at a venv instead, e.g. /opt/GPON/.venv/bin/python3.
 # /usr/local/bin is the FHS-correct location for sysadmin-installed
 # scripts; adjust if you cloned the repo elsewhere. Webserver-port 8114
 # is the documented default; change it if your prometheus.yml scrape

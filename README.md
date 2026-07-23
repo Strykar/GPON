@@ -50,11 +50,11 @@ exporter-only variant when you already have observability infra.
 The manual path (no docker), shortest version:
 
 ```sh
-# 1. install runtime deps -- pick ONE of these (see Requirements below;
-#    paramiko must be <5, which rules out Arch's repo package)
+# 1. install runtime deps -- pick ONE of these. paramiko must be >=3.0,<5;
+#    if your distro packages paramiko 5, use the venv (see Requirements below)
 sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu
 # OR
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # any distro; required on Arch
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # any distro
 
 # 2. run the exporter against your SFP
 export ONU_SSH_PASSWORD='your-password-here'
@@ -97,25 +97,29 @@ All cumulative device counters are real Prometheus **Counters** with a
 
 ### Requirements
 
-Two runtime deps: `paramiko>=3.0,<5` and `prometheus_client>=0.17`. The
-upper pin is load-bearing: paramiko 5 deleted the legacy SSH algorithms
-the SFP's 2008-era dropbear speaks, so it cannot connect to the stick
-at all (see [QUIRKS](docs/QUIRKS.md#legacy-ssh-crypto)). Both deps are
-in standard distro repos -- prefer them over `pip` so you don't have to
-opt out of PEP 668 with `--break-system-packages` and risk a broken
-system Python.
+Two runtime deps: `paramiko>=3.0,<5` and `prometheus_client>=0.17`.
+paramiko 5 removed the legacy SSH algorithms the SFP's dropbear speaks,
+so 5.x cannot connect to the stick at all (see
+[QUIRKS](docs/QUIRKS.md#legacy-ssh-crypto)).
+
+Distro packages beat `pip` (no PEP 668 `--break-system-packages`, no
+risk to the system Python), but only if the packaged paramiko satisfies
+the pin. Check before installing:
 
 ```sh
-sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu/Proxmox LXC
+apt policy python3-paramiko     # Debian/Ubuntu/Proxmox LXC
+pacman -Si python-paramiko      # Arch
 ```
 
-Arch users: skip the repo package -- python-paramiko is 5.x there (as
-of mid-2026), which cannot talk to the stick. Use the venv path below
-instead.
+If it's below 5:
 
-If you need a newer version than your distro ships, or you're on a system
-without those packages, use a venv (never `pip install` into the system
-interpreter on a modern distro):
+```sh
+sudo apt install python3-paramiko python3-prometheus-client
+```
+
+If your distro has moved to paramiko 5, use a venv instead --
+`requirements.txt` carries the pin (never `pip install` into the
+system interpreter on a modern distro):
 
 ```sh
 python3 -m venv .venv
