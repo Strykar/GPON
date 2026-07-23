@@ -50,12 +50,11 @@ exporter-only variant when you already have observability infra.
 The manual path (no docker), shortest version:
 
 ```sh
-# 1. install runtime deps -- pick ONE of these (see Requirements below)
-sudo pacman -S python-paramiko python-prometheus_client    # Arch
-# OR
+# 1. install runtime deps -- pick ONE of these (see Requirements below;
+#    paramiko must be <5, which rules out Arch's repo package)
 sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu
 # OR
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # any distro
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt  # any distro; required on Arch
 
 # 2. run the exporter against your SFP
 export ONU_SSH_PASSWORD='your-password-here'
@@ -107,12 +106,12 @@ opt out of PEP 668 with `--break-system-packages` and risk a broken
 system Python.
 
 ```sh
-sudo pacman -S python-paramiko python-prometheus_client      # Arch
 sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu/Proxmox LXC
 ```
 
-Arch already ships python-paramiko 5.x (as of mid-2026), which the
-exporter can't use -- take the venv path below on Arch.
+Arch users: skip the repo package -- python-paramiko is 5.x there (as
+of mid-2026), which cannot talk to the stick. Use the venv path below
+instead.
 
 If you need a newer version than your distro ships, or you're on a system
 without those packages, use a venv (never `pip install` into the system
