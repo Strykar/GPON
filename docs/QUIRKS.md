@@ -85,13 +85,17 @@ Host odi
     HostKeyAlgorithms +ssh-rsa
 ```
 
-paramiko's defaults are looser than OpenSSH's and still include these
-legacy algorithms, so the collector connects without explicit
-configuration. If a future paramiko release tightens defaults further,
-the symptom will be `paramiko.SSHException: no matching ... method
-found`; the fix is to pass `disabled_algorithms={}` (no-op override) to
-`SSHClient.connect()` or configure the `Transport` with an explicit
-preferred-list before authentication.
+paramiko 3.x and 4.x ship these legacy algorithms in their default
+preference lists, so the collector connects without explicit
+configuration. paramiko 5.0.0 deleted the `diffie-hellman-group1-sha1`
+kex and `ssh-rsa` host-key implementations outright (the
+`paramiko.kex_group1` module no longer exists), so every fetch fails
+with `IncompatiblePeer: Incompatible ssh peer (no acceptable kex
+algorithm)` and no `disabled_algorithms` or security-options override
+can bring them back. `requirements.txt` therefore pins `paramiko<5`.
+Distro packages are affected too: rolling distros ship python-paramiko
+5.x (Arch does as of mid-2026), which cannot talk to the stick -- run
+the exporter from a venv with the pinned requirements there.
 
 The SFP itself can't speak modern crypto without a firmware that ships
 a newer dropbear, which doesn't exist for this hardware. Treat the link

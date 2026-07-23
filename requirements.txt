@@ -1,2 +1,5 @@
-paramiko>=3.0
+# paramiko 5.0.0 removed the diffie-hellman-group1-sha1 kex and ssh-rsa
+# host-key algorithms outright. The SFP's 2008-era dropbear speaks nothing
+# newer (docs/QUIRKS.md "Legacy SSH crypto"), so paramiko must stay <5.
+paramiko>=3.0,<5
 prometheus_client>=0.17

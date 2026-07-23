@@ -98,7 +98,10 @@ All cumulative device counters are real Prometheus **Counters** with a
 
 ### Requirements
 
-Two runtime deps: `paramiko>=3.0` and `prometheus_client>=0.17`. Both are
+Two runtime deps: `paramiko>=3.0,<5` and `prometheus_client>=0.17`. The
+upper pin is load-bearing: paramiko 5 deleted the legacy SSH algorithms
+the SFP's 2008-era dropbear speaks, so it cannot connect to the stick
+at all (see [QUIRKS](docs/QUIRKS.md#legacy-ssh-crypto)). Both deps are
 in standard distro repos -- prefer them over `pip` so you don't have to
 opt out of PEP 668 with `--break-system-packages` and risk a broken
 system Python.
@@ -107,6 +110,9 @@ system Python.
 sudo pacman -S python-paramiko python-prometheus_client      # Arch
 sudo apt install python3-paramiko python3-prometheus-client  # Debian/Ubuntu/Proxmox LXC
 ```
+
+Arch already ships python-paramiko 5.x (as of mid-2026), which the
+exporter can't use -- take the venv path below on Arch.
 
 If you need a newer version than your distro ships, or you're on a system
 without those packages, use a venv (never `pip install` into the system

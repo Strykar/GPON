@@ -20,7 +20,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "paramiko>=3.0",
+    "paramiko>=3.0,<5",
     "prometheus_client>=0.17",
 ]
 
